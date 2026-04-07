@@ -1,0 +1,27 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at top, #f5f3ff 0%, #e0e7ff 100%);
+}
+
+.header {
+  padding: 2rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 20px 70px rgba(15, 23, 42, 0.1);
+  text-align: center;
+}
+
+.header h1 {
+  margin: 0 0 1rem;
+  font-size: clamp(2rem, 5vw, 3rem);
+  color: #1e293b;
+}
+
+.header p {
+  margin: 0;
+  color: #475569;
+  font-size: 1.1rem;
+}
