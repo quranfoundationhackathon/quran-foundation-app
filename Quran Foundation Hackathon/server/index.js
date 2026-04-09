@@ -473,6 +473,7 @@ app.get('/api/chapters/:chapterNumber/verses/:translationId', checkCredentials, 
 });
 
 // Get verses for a specific chapter with default translation
+// SAMPLE Comment
 app.get('/api/chapters/:chapterNumber/verses', checkCredentials, async (req, res) => {
   try {
     const { chapterNumber } = req.params;
