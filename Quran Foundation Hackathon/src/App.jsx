@@ -1,11 +1,84 @@
  import { useState, useEffect } from "react";
 import "./App.css";
 
-function Home() {
+function Home({ onNavigate }) {
+  const [greeting, setGreeting] = useState('');
+  const [hijriDate, setHijriDate] = useState('');
+
+  useEffect(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) setGreeting('Good Morning');
+    else if (hour < 17) setGreeting('Good Afternoon');
+    else setGreeting('Good Evening');
+
+    // Simple Hijri date approximation
+    const now = new Date();
+    const opts = { year: 'numeric', month: 'long', day: 'numeric' };
+    try {
+      const hijri = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', opts).format(now);
+      setHijriDate(hijri);
+    } catch {
+      setHijriDate('');
+    }
+  }, []);
+
   return (
-    <div className="screen">
-      <h1>Home</h1>
-      <p>Welcome to your Islamic app. Explore Quran, Salah times, and more.</p>
+    <div className="home-page">
+      {/* Decorative geometric background */}
+      <div className="home-geo-pattern" />
+
+      {/* Hero Section */}
+      <div className="home-hero">
+        <div className="home-bismillah">﷽</div>
+        <h1 className="home-title">As-Salamu Alaykum</h1>
+        <p className="home-greeting">{greeting}</p>
+        {hijriDate && <p className="home-hijri">{hijriDate}</p>}
+      </div>
+
+      {/* Daily Verse Card */}
+      <div className="home-verse-card">
+        <div className="home-verse-label">Verse of the Day</div>
+        <p className="home-verse-arabic">
+          إِنَّ مَعَ ٱلْعُسْرِ يُسْرًۭا
+        </p>
+        <p className="home-verse-translation">
+          "Indeed, with hardship comes ease."
+        </p>
+        <p className="home-verse-ref">— Surah Ash-Sharh 94:6</p>
+      </div>
+
+      {/* Quick Access Grid */}
+      <div className="home-grid">
+        <button className="home-card" onClick={() => onNavigate?.('quran')}>
+          <span className="home-card-icon">📖</span>
+          <span className="home-card-label">Read Quran</span>
+          <span className="home-card-desc">114 Surahs</span>
+        </button>
+        <button className="home-card" onClick={() => onNavigate?.('salah')}>
+          <span className="home-card-icon">🕌</span>
+          <span className="home-card-label">Salah Times</span>
+          <span className="home-card-desc">Prayer schedule</span>
+        </button>
+        <button className="home-card" onClick={() => onNavigate?.('quran')}>
+          <span className="home-card-icon">🔖</span>
+          <span className="home-card-label">Bookmarks</span>
+          <span className="home-card-desc">Continue reading</span>
+        </button>
+        <button className="home-card" onClick={() => onNavigate?.('explore')}>
+          <span className="home-card-icon">✨</span>
+          <span className="home-card-label">Explore</span>
+          <span className="home-card-desc">Learn more</span>
+        </button>
+      </div>
+
+      {/* Inspirational Hadith */}
+      <div className="home-hadith">
+        <div className="home-hadith-deco">❝</div>
+        <p className="home-hadith-text">
+          The best among you are those who learn the Quran and teach it.
+        </p>
+        <p className="home-hadith-source">— Sahih al-Bukhari</p>
+      </div>
     </div>
   );
 }
@@ -153,13 +226,18 @@ function Quran() {
     spacing: 'normal', // 'compact', 'normal', 'spacious'
     layoutMode: 'normal', // 'normal' or 'wide'
     scriptStyle: 'uthmani', // 'uthmani', 'indopak', 'simple', 'naskh'
-    translationId: 131, // Default: Sahih International
+    translationId: 85, // Default: M.A.S. Abdel Haleem (confirmed working in QF API)
   };
 
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem('quranReaderSettings');
-    // Merge saved settings with defaults to ensure new fields are always present
-    return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
+    const merged = saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
+    // Reset translationId if it's an old invalid value (131 no longer works)
+    const validIds = [85, 57, 234, 161, 80, 39, 33, 78, 208, 136, 140];
+    if (!validIds.includes(merged.translationId)) {
+      merged.translationId = 85;
+    }
+    return merged;
   });
 
   const [availableTranslations, setAvailableTranslations] = useState([]);
@@ -228,6 +306,12 @@ function Quran() {
           `http://localhost:3001/api/chapters/${selectedSurah}/verses/${settings.translationId}`
         );
 
+        if (response.status === 404) {
+          throw new Error(
+            `This surah is not yet available in the current Quran Foundation API tier. Chapters 1–2 are available.`
+          );
+        }
+
         if (!response.ok) {
           throw new Error(
             `Backend returned ${response.status}: ${response.statusText}`
@@ -237,7 +321,8 @@ function Quran() {
         const data = await response.json();
 
         if (data.verses) {
-          console.log('Raw verses from backend:', data.verses[0]); // Debug
+          console.log('Verses received:', data.verses.length, 'First verse:', data.verses[0]);
+          
           // Find the chapter info from surahs state
           const chapterInfo = surahs.find(
             (s) => s.id === selectedSurah
@@ -256,36 +341,29 @@ function Quran() {
             }
           };
 
-          // Create surah object with verses
+          // Create surah object with verses - map translation directly here
           const surahData = {
             number: selectedSurah,
             englishName: chapterInfo?.name_simple || 'Chapter',
             name: chapterInfo?.name || 'سورة',
             ayahs: data.verses.map((verse) => ({
-              number: verse.verse_number, // Use correct field name
-              numberInSurah: verse.verse_number_in_surah || verse.verse_number, // Try both possible names
-              text: getArabicText(verse), // Use correct Arabic text field
+              number: verse.verse_number,
+              numberInSurah: verse.verse_number_in_surah || verse.verse_number,
+              text: getArabicText(verse),
+              translation: verse.translation_text || 'Translation not available',
               words: verse.words || [],
-              translations: verse.translations || [],
             })),
           };
-          console.log('Mapped surah:', { number: surahData.number, englishName: surahData.englishName, ayahCount: surahData.ayahs.length, firstAyah: surahData.ayahs[0] }); // Debug
+          
+          console.log('Surah loaded:', {
+            number: surahData.number,
+            name: surahData.englishName,
+            verses: surahData.ayahs.length,
+            firstVerse: surahData.ayahs[0]
+          });
 
           setSurah(surahData);
-
-          // For translation, extract the correct translation by ID from the translations array
-          const translationData = {
-            ayahs: data.verses.map((verse) => {
-              // Find the translation matching the selected translation ID
-              const selectedTranslation = verse.translations?.find(t => t.id === settings.translationId);
-              return {
-                number: verse.verse_number,
-                text: selectedTranslation?.text || verse.translations?.[0]?.text || 'Translation not available',
-              };
-            }),
-          };
-
-          setTranslation(translationData);
+          setTranslation(null); // No longer needed as separate object
         } else {
           throw new Error('No verses found in response');
         }
@@ -617,7 +695,7 @@ function Quran() {
                             fontSize: `${settings.translationSize}rem`,
                           }}
                         >
-                          {translation?.ayahs[index]?.text}
+                          {ayah.translation}
                         </p>
                       )}
                     </div>
@@ -664,7 +742,7 @@ export default function App() {
   return (
     <div className="app">
       <div className="content">
-        {tab === "home" && <Home />}
+        {tab === "home" && <Home onNavigate={setTab} />}
         {tab === "quran" && <Quran />}
         {tab === "salah" && <Salah />}
         {tab === "explore" && <Explore />}

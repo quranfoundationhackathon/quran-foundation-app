@@ -925,3 +925,246 @@
 .quran-screen .surah-arabic {
   color: var(--accent);
 }
+
+/* ==================== HOME PAGE ==================== */
+
+.home-page {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 0 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle geometric pattern overlay */
+.home-geo-pattern {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image:
+    repeating-conic-gradient(
+      from 0deg at 50% 50%,
+      transparent 0deg 60deg,
+      rgba(93, 157, 148, 0.5) 60deg 120deg,
+      transparent 120deg 180deg
+    );
+  background-size: 60px 60px;
+  z-index: 0;
+}
+
+.home-page > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Hero Section */
+.home-hero {
+  text-align: center;
+  padding: 32px 20px 16px;
+}
+
+.home-bismillah {
+  font-family: 'Amiri', 'Traditional Arabic', serif;
+  font-size: 3rem;
+  color: #5d9d94;
+  margin-bottom: 12px;
+  line-height: 1.2;
+  filter: drop-shadow(0 2px 8px rgba(93, 157, 148, 0.3));
+}
+
+.home-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #e8eef5;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.5px;
+}
+
+.home-greeting {
+  font-size: 1.05rem;
+  color: #94a3b8;
+  margin: 0 0 4px 0;
+}
+
+.home-hijri {
+  font-size: 0.9rem;
+  color: #5d9d94;
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+/* Verse of the Day Card */
+.home-verse-card {
+  background: linear-gradient(135deg, rgba(93, 157, 148, 0.12) 0%, rgba(11, 31, 58, 0.6) 100%);
+  border: 1px solid rgba(93, 157, 148, 0.2);
+  border-radius: 20px;
+  padding: 28px 24px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.home-verse-card::before {
+  content: '';
+  position: absolute;
+  top: -30px;
+  right: -30px;
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(circle, rgba(93, 157, 148, 0.15) 0%, transparent 70%);
+  border-radius: 50%;
+}
+
+.home-verse-card::after {
+  content: '';
+  position: absolute;
+  bottom: -20px;
+  left: -20px;
+  width: 80px;
+  height: 80px;
+  background: radial-gradient(circle, rgba(93, 157, 148, 0.1) 0%, transparent 70%);
+  border-radius: 50%;
+}
+
+.home-verse-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #5d9d94;
+  margin-bottom: 16px;
+}
+
+.home-verse-arabic {
+  font-family: 'Amiri', 'Traditional Arabic', serif;
+  font-size: 1.8rem;
+  line-height: 2.2;
+  color: #e8eef5;
+  direction: rtl;
+  margin: 0 0 14px 0;
+  word-spacing: 0.1em;
+}
+
+.home-verse-translation {
+  font-size: 1.05rem;
+  color: #cbd5e1;
+  font-style: italic;
+  margin: 0 0 10px 0;
+  line-height: 1.6;
+}
+
+.home-verse-ref {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Quick Access Grid */
+.home-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.home-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(93, 157, 148, 0.12);
+  border-radius: 16px;
+  padding: 22px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  text-align: center;
+}
+
+.home-card:hover {
+  background: rgba(93, 157, 148, 0.1);
+  border-color: rgba(93, 157, 148, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.home-card:active {
+  transform: translateY(0);
+}
+
+.home-card-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.home-card-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #e8eef5;
+}
+
+.home-card-desc {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+/* Hadith Card */
+.home-hadith {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
+  padding: 24px 28px 20px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 16px;
+}
+
+.home-hadith-deco {
+  font-size: 2.2rem;
+  color: rgba(93, 157, 148, 0.4);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.home-hadith-text {
+  font-size: 1rem;
+  color: #cbd5e1;
+  line-height: 1.7;
+  margin: 0 0 10px 0;
+  font-style: italic;
+}
+
+.home-hadith-source {
+  font-size: 0.8rem;
+  color: #5d9d94;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Mobile adjustments for Home */
+@media (max-width: 480px) {
+  .home-bismillah {
+    font-size: 2.4rem;
+  }
+
+  .home-title {
+    font-size: 1.6rem;
+  }
+
+  .home-verse-arabic {
+    font-size: 1.5rem;
+  }
+
+  .home-grid {
+    gap: 10px;
+  }
+
+  .home-card {
+    padding: 18px 12px;
+  }
+}

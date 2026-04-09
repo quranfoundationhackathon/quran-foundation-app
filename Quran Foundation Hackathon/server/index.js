@@ -129,50 +129,85 @@ const quranApiRequest = async (endpoint) => {
 };
 
 // ============================================================
-// PAGINATION HELPER - Fetch all pages and combine results
+// FETCH ALL VERSES - Paginates through QF API (Arabic text only)
 // ============================================================
-const fetchAllPages = async (baseEndpoint, dataKey) => {
-  let allData = [];
+const fetchVerses = async (chapterId) => {
+  const allVerses = [];
   let page = 1;
-  let hasMore = true;
+  const perPage = 50;
 
-  while (hasMore) {
-    try {
-      // Add pagination parameters
-      const separator = baseEndpoint.includes('?') ? '&' : '?';
-      const endpoint = `${baseEndpoint}${separator}page=${page}&limit=50`;
-      
-      console.log(`Fetching ${dataKey} page ${page}...`);
-      const data = await quranApiRequest(endpoint);
+  console.log(`  Fetching verses for chapter ${chapterId}...`);
 
-      // Debug: Log what we received for first page
+  while (true) {
+    const endpoint = `/verses/by_chapter/${chapterId}?language=en&fields=text_uthmani&per_page=${perPage}&page=${page}`;
+    const data = await quranApiRequest(endpoint);
+
+    if (!data.verses) {
       if (page === 1) {
-        const keys = Object.keys(data);
-        console.log(`  Response keys: ${keys.join(', ')}`);
-        console.log(`  Data[${dataKey}] exists: ${!!data[dataKey]}, length: ${data[dataKey] ? data[dataKey].length : 'N/A'}`);
+        console.log(`  ⚠ QF API: chapter ${chapterId} not available in this tier`);
       }
+      break;
+    }
 
-      if (!data[dataKey] || data[dataKey].length === 0) {
-        hasMore = false;
-        break;
-      }
+    allVerses.push(...data.verses);
+    console.log(`  Verses page ${page}: ${data.verses.length} (total: ${allVerses.length})`);
 
-      allData = allData.concat(data[dataKey]);
-      console.log(`  Got ${data[dataKey].length} ${dataKey}, total: ${allData.length}`);
+    if (!data.pagination?.next_page || data.verses.length < perPage) break;
+    page++;
+  }
 
-      // Check if there are more pages
-      if (data[dataKey].length < 50) {
-        hasMore = false;
-      }
+  console.log(`  ✓ ${allVerses.length} verses for chapter ${chapterId}`);
+  return allVerses;
+};
 
-      page++;
-    } catch (err) {
-      console.error(`Error fetching ${dataKey} page ${page}:`, err.message);
-      hasMore = false;
+// ============================================================
+// FETCH ALL TRANSLATIONS - Paginates through QF translation API
+// ============================================================
+const fetchTranslations = async (chapterId, resourceId) => {
+  const allTranslations = [];
+  let page = 1;
+  const perPage = 50;
+
+  console.log(`  Fetching translations for chapter ${chapterId} (resource: ${resourceId})...`);
+
+  while (true) {
+    const endpoint = `/translations/${resourceId}/by_chapter/${chapterId}?fields=verse_number&per_page=${perPage}&page=${page}`;
+    const data = await quranApiRequest(endpoint);
+
+    if (!data.translations || data.translations.length === 0) break;
+
+    allTranslations.push(...data.translations);
+    console.log(`  Translations page ${page}: ${data.translations.length} (total: ${allTranslations.length})`);
+
+    if (!data.pagination?.next_page || data.translations.length < perPage) break;
+    page++;
+  }
+
+  console.log(`  ✓ ${allTranslations.length} translations for chapter ${chapterId}`);
+  return allTranslations;
+};
+
+// ============================================================
+// MERGE - Combine verses + translations by verse_number
+// ============================================================
+const mergeVersesAndTranslations = (verses, translations, chapterId) => {
+  // Build a map: verse_number -> translation text
+  const transMap = {};
+  for (const t of translations) {
+    if (t.verse_number !== undefined && t.text) {
+      transMap[t.verse_number] = t.text;
     }
   }
 
-  return allData;
+  return verses.map(verse => ({
+    id: verse.id,
+    verse_number: verse.verse_number,
+    verse_number_in_surah: verse.verse_number,
+    verse_key: verse.verse_key || `${chapterId}:${verse.verse_number}`,
+    text_uthmani: verse.text_uthmani || '',
+    text_imlaei: verse.text_imlaei || '',
+    translation_text: transMap[verse.verse_number] || 'Translation not available',
+  }));
 };
 
 // ============================================================
@@ -387,21 +422,21 @@ app.get('/api/chapters', checkCredentials, async (req, res) => {
 app.get('/api/chapters/:chapterNumber/verses/:translationId', checkCredentials, async (req, res) => {
   try {
     const { chapterNumber, translationId } = req.params;
+    const chapter = parseInt(chapterNumber);
+    const transId = parseInt(translationId);
 
-    console.log(`[DEBUG] Received params - chapterNumber: "${chapterNumber}" (type: ${typeof chapterNumber}), translationId: "${translationId}" (type: ${typeof translationId})`);
+    console.log(`\n=== Fetching Chapter ${chapter} with Translation ${transId} ===`);
 
     // Validate inputs
-    if (!chapterNumber || isNaN(chapterNumber)) {
-      console.error(`[ERROR] Invalid chapter number: ${chapterNumber}`);
+    if (isNaN(chapter) || chapter < 1 || chapter > 114) {
       return res.status(400).json({
         error: 'Invalid chapter number',
-        message: 'Chapter number must be a valid integer',
+        message: 'Chapter number must be between 1 and 114',
         status: 'INVALID_INPUT'
       });
     }
 
-    if (!translationId || isNaN(translationId)) {
-      console.error(`[ERROR] Invalid translation ID: ${translationId}, isNaN result: ${isNaN(translationId)}`);
+    if (isNaN(transId)) {
       return res.status(400).json({
         error: 'Invalid translation ID',
         message: 'Translation ID must be a valid number',
@@ -409,22 +444,24 @@ app.get('/api/chapters/:chapterNumber/verses/:translationId', checkCredentials, 
       });
     }
 
-    console.log(`Fetching verses for chapter ${chapterNumber} with translation ${translationId}...`);
+    // Fetch verses (Arabic) and translations in parallel
+    console.log(`Fetching chapter ${chapter} + translation ${transId} in parallel...`);
+    const [rawVerses, rawTranslations] = await Promise.all([
+      fetchVerses(chapter),
+      fetchTranslations(chapter, transId),
+    ]);
 
-    // Fetch all verses - API returns all translations in the translations array
-    const endpoint = `/verses/by_chapter/${chapterNumber}?language=en&fields=text_uthmani,text_indopak,text_simple,transliteration`;
-    const allVerses = await fetchAllPages(endpoint, 'verses');
-
-    if (!allVerses || allVerses.length === 0) {
-      return res.status(500).json({
-        error: 'No verses retrieved',
-        message: `Quran Foundation API returned no verses for chapter ${chapterNumber}`,
-        status: 'INVALID_RESPONSE'
+    if (rawVerses.length === 0) {
+      return res.status(404).json({
+        error: 'Chapter not available',
+        message: `Chapter ${chapter} is not yet available in the current Quran Foundation API tier`,
+        status: 'NOT_AVAILABLE'
       });
     }
 
-    console.log(`✓ Total verses fetched for chapter ${chapterNumber}: ${allVerses.length}`);
-    res.json({ verses: allVerses });
+    const verses = mergeVersesAndTranslations(rawVerses, rawTranslations, chapter);
+    console.log(`✓ Returning ${verses.length} verses for chapter ${chapter} (${rawTranslations.length} translations merged)`);
+    res.json({ verses });
   } catch (err) {
     console.error('Error fetching verses with translation:', err.message);
     res.status(500).json({
@@ -435,36 +472,40 @@ app.get('/api/chapters/:chapterNumber/verses/:translationId', checkCredentials, 
   }
 });
 
-// Get verses for a specific chapter with default translation (LESS SPECIFIC - comes after specific route)
+// Get verses for a specific chapter with default translation
 app.get('/api/chapters/:chapterNumber/verses', checkCredentials, async (req, res) => {
   try {
     const { chapterNumber } = req.params;
+    const chapter = parseInt(chapterNumber);
+    const transId = 85; // Default: M.A.S. Abdel Haleem (confirmed working in this API tier)
 
-    // Validate chapter number
-    if (!chapterNumber || isNaN(chapterNumber)) {
+    console.log(`\n=== Fetching Chapter ${chapter} (default translation) ===`);
+
+    if (isNaN(chapter) || chapter < 1 || chapter > 114) {
       return res.status(400).json({
         error: 'Invalid chapter number',
-        message: 'Chapter number must be a valid integer',
+        message: 'Chapter number must be between 1 and 114',
         status: 'INVALID_INPUT'
       });
     }
 
-    console.log(`Fetching all verses for chapter ${chapterNumber}...`);
+    // Fetch verses (Arabic) and translations in parallel
+    const [rawVerses, rawTranslations] = await Promise.all([
+      fetchVerses(chapter),
+      fetchTranslations(chapter, transId),
+    ]);
 
-    // Fetch all verses from all pages - API returns all translations in the translations array
-    const endpoint = `/verses/by_chapter/${chapterNumber}?language=en&fields=text_uthmani,text_indopak,text_simple,transliteration`;
-    const allVerses = await fetchAllPages(endpoint, 'verses');
-
-    if (!allVerses || allVerses.length === 0) {
-      return res.status(500).json({
-        error: 'No verses retrieved',
-        message: `Quran Foundation API returned no verses for chapter ${chapterNumber}`,
-        status: 'INVALID_RESPONSE'
+    if (rawVerses.length === 0) {
+      return res.status(404).json({
+        error: 'Chapter not available',
+        message: `Chapter ${chapter} is not yet available in the current Quran Foundation API tier`,
+        status: 'NOT_AVAILABLE'
       });
     }
 
-    console.log(`✓ Total verses fetched for chapter ${chapterNumber}: ${allVerses.length}`);
-    res.json({ verses: allVerses });
+    const verses = mergeVersesAndTranslations(rawVerses, rawTranslations, chapter);
+    console.log(`✓ Returning ${verses.length} verses for chapter ${chapter} (${rawTranslations.length} translations merged)`);
+    res.json({ verses });
   } catch (err) {
     console.error('Error fetching verses:', err.message);
     res.status(500).json({
@@ -476,23 +517,27 @@ app.get('/api/chapters/:chapterNumber/verses', checkCredentials, async (req, res
 });
 
 // ============================================================
-// AVAILABLE TRANSLATIONS
+// AVAILABLE TRANSLATIONS - Only IDs confirmed working in this API tier
 // ============================================================
 const AVAILABLE_TRANSLATIONS = [
-  { id: 131, name: 'Sahih International', language: 'English', description: 'Most accurate modern translation' },
-  { id: 19, name: 'Pickthall', language: 'English', description: 'Early classical translation' },
-  { id: 20, name: 'Yusuf Ali', language: 'English', description: 'Popular with detailed notes' },
-  { id: 22, name: 'Shakir', language: 'English', description: 'Literal translation' },
-  { id: 32, name: 'Waleed Bledar Bleg', language: 'English', description: 'Modern translation' },
-  { id: 130, name: 'Mufti Taqi Usmani', language: 'English', description: 'Islamic scholar translation' },
-  { id: 87, name: 'Urdu Ta\'aeeq', language: 'Urdu', description: 'Urdu translation with tafsir' },
+  { id: 85,  name: 'M.A.S. Abdel Haleem', language: 'English', description: 'Modern English translation' },
+  { id: 57,  name: 'Transliteration',      language: 'English', description: 'Latin-script transliteration' },
+  { id: 234, name: 'Fatah Muhammad Jalandhari', language: 'Urdu', description: 'Urdu translation' },
+  { id: 161, name: 'Taisirul Quran',        language: 'Bengali', description: 'Bengali translation' },
+  { id: 80,  name: 'Muhammad Karakunnu',    language: 'Malayalam', description: 'Malayalam translation' },
+  { id: 39,  name: 'Abdullah Muhammad Basmeih', language: 'Malay', description: 'Malay translation' },
+  { id: 33,  name: 'Indonesian Min. of Islamic Affairs', language: 'Indonesian', description: 'Indonesian translation' },
+  { id: 78,  name: 'Ministry of Awqaf, Egypt', language: 'Russian', description: 'Russian translation' },
+  { id: 208, name: 'Abu Reda Muhammad ibn Ahmad', language: 'German', description: 'German translation' },
+  { id: 136, name: 'Montada Islamic Foundation', language: 'French', description: 'French translation' },
+  { id: 140, name: 'Montada Islamic Foundation', language: 'Spanish', description: 'Spanish translation' },
 ];
 
 // Get list of available translations
 app.get('/api/translations', (req, res) => {
-  res.json({ 
+  res.json({
     translations: AVAILABLE_TRANSLATIONS,
-    default: 131
+    default: 85
   });
 });
 
