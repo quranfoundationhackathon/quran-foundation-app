@@ -983,7 +983,7 @@ function Quran() {
     setAudioState('loading');
 
     const verseKey = `${surah.number}:${ayah.numberInSurah}`;
-    fetch(`http://localhost:3001/api/audio/verse/${selectedReciter}/${surah.number}`)
+    fetch(`http://localhost:3001/api/audio/verse/2/${surah.number}`)
       .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
       .then(data => {
         const files = data?.audio_files;
@@ -1025,7 +1025,7 @@ function Quran() {
     setAudioMode('surah');
     setAudioState('loading');
 
-    fetch(`http://localhost:3001/api/audio/chapter/${selectedReciter}/${surah.number}`)
+    fetch(`http://localhost:3001/api/audio/chapter/2/${surah.number}`)
       .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
       .then(data => {
         const audioFile = data?.audio_file;
