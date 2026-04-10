@@ -543,6 +543,110 @@ app.get('/api/translations', (req, res) => {
 });
 
 // ============================================================
+// TAFSIR ENDPOINT — Fetch tafsirs for a chapter (QF by_chapter API)
+// ============================================================
+const AVAILABLE_TAFSIRS = [
+  { id: 169, name: 'Tafsir Ibn Kathir', language: 'English' },
+  { id: 171, name: 'Tafsir al-Jalalayn', language: 'English' },
+];
+
+const fetchAllTafsirs = async (tafsirId, chapterNumber) => {
+  const all = [];
+  let page = 1;
+  const perPage = 50;
+
+  while (true) {
+    const endpoint = `/tafsirs/${tafsirId}/by_chapter/${chapterNumber}?per_page=${perPage}&page=${page}&fields=verse_key,verse_number`;
+    const data = await quranApiRequest(endpoint);
+
+    if (!data.tafsirs || data.tafsirs.length === 0) break;
+    all.push(...data.tafsirs);
+    console.log(`  Tafsir page ${page}: ${data.tafsirs.length} (total: ${all.length})`);
+
+    if (!data.pagination?.next_page || data.tafsirs.length < perPage) break;
+    page++;
+  }
+  return all;
+};
+
+app.get('/api/tafsir/:tafsirId/by_chapter/:chapterNumber', checkCredentials, async (req, res) => {
+  try {
+    const { tafsirId, chapterNumber } = req.params;
+    const tId = parseInt(tafsirId);
+    const ch = parseInt(chapterNumber);
+    if (isNaN(tId)) {
+      return res.status(400).json({ error: 'Invalid tafsir ID', status: 'INVALID_INPUT' });
+    }
+    if (isNaN(ch) || ch < 1 || ch > 114) {
+      return res.status(400).json({ error: 'Invalid chapter number', status: 'INVALID_INPUT' });
+    }
+    console.log(`\n=== Fetching Tafsir ${tId} for Chapter ${ch} ===`);
+    const tafsirs = await fetchAllTafsirs(tId, ch);
+    console.log(`✓ Returning ${tafsirs.length} tafsir entries for chapter ${ch}`);
+    res.json({ tafsirs });
+  } catch (err) {
+    console.error('Error fetching tafsir:', err.message);
+    res.status(500).json({ error: 'Failed to fetch tafsir', message: err.message, status: 'API_ERROR' });
+  }
+});
+
+app.get('/api/tafsirs', (req, res) => {
+  res.json({ tafsirs: AVAILABLE_TAFSIRS });
+});
+
+// ============================================================
+// AUDIO: Full Chapter Audio (for surah-level playback)
+// ============================================================
+app.get('/api/audio/chapter/:reciterId/:chapterNumber', checkCredentials, async (req, res) => {
+  try {
+    const reciterId = parseInt(req.params.reciterId);
+    const chapterNumber = parseInt(req.params.chapterNumber);
+    if (isNaN(reciterId) || isNaN(chapterNumber)) {
+      return res.status(400).json({ error: 'Invalid reciter or chapter ID', status: 'INVALID_INPUT' });
+    }
+    console.log(`\n=== Chapter Audio: reciter=${reciterId} chapter=${chapterNumber} ===`);
+    const data = await quranApiRequest(`/chapter_recitations/${reciterId}/${chapterNumber}`);
+    res.json(data);
+  } catch (err) {
+    console.error('Error fetching chapter audio:', err.message);
+    res.status(500).json({ error: 'Failed to fetch chapter audio', message: err.message, status: 'API_ERROR' });
+  }
+});
+
+// ============================================================
+// AUDIO: Per-Verse Audio Files (for ayah-level playback)
+// ============================================================
+app.get('/api/audio/verse/:reciterId/:chapterNumber', checkCredentials, async (req, res) => {
+  try {
+    const reciterId = parseInt(req.params.reciterId);
+    const chapterNumber = parseInt(req.params.chapterNumber);
+    if (isNaN(reciterId) || isNaN(chapterNumber)) {
+      return res.status(400).json({ error: 'Invalid reciter or chapter ID', status: 'INVALID_INPUT' });
+    }
+    console.log(`\n=== Verse Audio: reciter=${reciterId} chapter=${chapterNumber} ===`);
+    const data = await quranApiRequest(`/recitations/${reciterId}/by_chapter/${chapterNumber}?per_page=300`);
+    res.json(data);
+  } catch (err) {
+    console.error('Error fetching verse audio:', err.message);
+    res.status(500).json({ error: 'Failed to fetch verse audio', message: err.message, status: 'API_ERROR' });
+  }
+});
+
+// ============================================================
+// RECITERS ENDPOINT — List available reciters from QF API
+// ============================================================
+app.get('/api/reciters', checkCredentials, async (req, res) => {
+  try {
+    console.log('\n=== Fetching Chapter Reciters ===');
+    const data = await quranApiRequest('/resources/chapter_reciters?language=en');
+    res.json(data);
+  } catch (err) {
+    console.error('Error fetching reciters:', err.message);
+    res.status(500).json({ error: 'Failed to fetch reciters', message: err.message, status: 'API_ERROR' });
+  }
+});
+
+// ============================================================
 // START SERVER
 // ============================================================
 app.listen(PORT, () => {
