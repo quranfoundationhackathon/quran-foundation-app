@@ -140,7 +140,7 @@ const fetchVerses = async (chapterId) => {
 
   while (true) {
     const endpoint = `/verses/by_chapter/${chapterId}?language=en&fields=text_uthmani&per_page=${perPage}&page=${page}`;
-    const data = await quranApiRequest(endpoint);
+    const data = await cachedApiRequest(endpoint);
 
     if (!data.verses) {
       if (page === 1) {
@@ -172,7 +172,7 @@ const fetchTranslations = async (chapterId, resourceId) => {
 
   while (true) {
     const endpoint = `/translations/${resourceId}/by_chapter/${chapterId}?fields=verse_number&per_page=${perPage}&page=${page}`;
-    const data = await quranApiRequest(endpoint);
+    const data = await cachedApiRequest(endpoint);
 
     if (!data.translations || data.translations.length === 0) break;
 
@@ -375,7 +375,7 @@ app.get('/api/chapters', checkCredentials, async (req, res) => {
     
     try {
       console.log('Attempting to fetch from Quran Foundation API...');
-      const data = await quranApiRequest('/chapters?language=en');
+      const data = await cachedApiRequest('/chapters?language=en');
       
       if (data.chapters && Array.isArray(data.chapters) && data.chapters.length > 0) {
         chapters = data.chapters;
@@ -557,7 +557,7 @@ const fetchAllTafsirs = async (tafsirId, chapterNumber) => {
 
   while (true) {
     const endpoint = `/tafsirs/${tafsirId}/by_chapter/${chapterNumber}?per_page=${perPage}&page=${page}&fields=verse_key,verse_number`;
-    const data = await quranApiRequest(endpoint);
+    const data = await cachedApiRequest(endpoint);
 
     if (!data.tafsirs || data.tafsirs.length === 0) break;
     all.push(...data.tafsirs);
@@ -595,6 +595,56 @@ app.get('/api/tafsirs', (req, res) => {
 });
 
 // ============================================================
+// WORD-BY-WORD — Fetch words with translation, transliteration, tajweed
+// ============================================================
+app.get('/api/chapters/:chapterNumber/words', checkCredentials, async (req, res) => {
+  try {
+    const chapter = parseInt(req.params.chapterNumber);
+    if (isNaN(chapter) || chapter < 1 || chapter > 114) {
+      return res.status(400).json({ error: 'Invalid chapter number', status: 'INVALID_INPUT' });
+    }
+    console.log(`\n=== Word-by-Word: chapter=${chapter} ===`);
+    
+    const allVerses = [];
+    let page = 1;
+    const perPage = 50;
+    
+    while (true) {
+      const endpoint = `/verses/by_chapter/${chapter}?language=en&words=true&word_fields=text_uthmani,text_uthmani_tajweed&fields=text_uthmani_tajweed&per_page=${perPage}&page=${page}`;
+      const data = await cachedApiRequest(endpoint);
+      if (!data.verses || data.verses.length === 0) break;
+      allVerses.push(...data.verses);
+      if (!data.pagination?.next_page || data.verses.length < perPage) break;
+      page++;
+    }
+    
+    // Transform to a map: verse_number -> words array
+    const wordsByVerse = {};
+    allVerses.forEach(v => {
+      const verseNum = v.verse_number || parseInt(v.verse_key?.split(':')[1]);
+      wordsByVerse[verseNum] = {
+        tajweed_text: v.text_uthmani_tajweed || '',
+        words: (v.words || []).map(w => ({
+          id: w.id,
+          position: w.position,
+          text: w.text_uthmani || w.text || '',
+          tajweed: w.text_uthmani_tajweed || '',
+          translation: w.translation?.text || '',
+          transliteration: w.transliteration?.text || '',
+          char_type: w.char_type_name || w.char_type || 'word',
+        })),
+      };
+    });
+    
+    console.log(`✓ Words for ${Object.keys(wordsByVerse).length} verses in chapter ${chapter}`);
+    res.json({ chapter, words_by_verse: wordsByVerse });
+  } catch (err) {
+    console.error('Error fetching word-by-word:', err.message);
+    res.status(500).json({ error: 'Failed to fetch word-by-word data', message: err.message, status: 'API_ERROR' });
+  }
+});
+
+// ============================================================
 // AUDIO: Full Chapter Audio (for surah-level playback)
 // ============================================================
 app.get('/api/audio/chapter/:reciterId/:chapterNumber', checkCredentials, async (req, res) => {
@@ -605,7 +655,7 @@ app.get('/api/audio/chapter/:reciterId/:chapterNumber', checkCredentials, async 
       return res.status(400).json({ error: 'Invalid reciter or chapter ID', status: 'INVALID_INPUT' });
     }
     console.log(`\n=== Chapter Audio: reciter=${reciterId} chapter=${chapterNumber} ===`);
-    const data = await quranApiRequest(`/chapter_recitations/${reciterId}/${chapterNumber}`);
+    const data = await cachedApiRequest(`/chapter_recitations/${reciterId}/${chapterNumber}`);
     res.json(data);
   } catch (err) {
     console.error('Error fetching chapter audio:', err.message);
@@ -624,7 +674,7 @@ app.get('/api/audio/verse/:reciterId/:chapterNumber', checkCredentials, async (r
       return res.status(400).json({ error: 'Invalid reciter or chapter ID', status: 'INVALID_INPUT' });
     }
     console.log(`\n=== Verse Audio: reciter=${reciterId} chapter=${chapterNumber} ===`);
-    const data = await quranApiRequest(`/recitations/${reciterId}/by_chapter/${chapterNumber}?per_page=300`);
+    const data = await cachedApiRequest(`/recitations/${reciterId}/by_chapter/${chapterNumber}?per_page=300`);
     res.json(data);
   } catch (err) {
     console.error('Error fetching verse audio:', err.message);
@@ -638,13 +688,389 @@ app.get('/api/audio/verse/:reciterId/:chapterNumber', checkCredentials, async (r
 app.get('/api/reciters', checkCredentials, async (req, res) => {
   try {
     console.log('\n=== Fetching Chapter Reciters ===');
-    const data = await quranApiRequest('/resources/chapter_reciters?language=en');
+    const data = await cachedApiRequest('/resources/chapter_reciters?language=en');
     res.json(data);
   } catch (err) {
     console.error('Error fetching reciters:', err.message);
     res.status(500).json({ error: 'Failed to fetch reciters', message: err.message, status: 'API_ERROR' });
   }
 });
+
+// VERSE-LEVEL RECITATIONS — more reciters available here
+app.get('/api/recitations', checkCredentials, async (req, res) => {
+  try {
+    console.log('\n=== Fetching Verse Recitations ===');
+    const data = await cachedApiRequest('/resources/recitations?language=en');
+    res.json(data);
+  } catch (err) {
+    console.error('Error fetching recitations:', err.message);
+    res.status(500).json({ error: 'Failed to fetch recitations', message: err.message, status: 'API_ERROR' });
+  }
+});
+
+// ============================================================
+// MP3QURAN.NET RECITERS — 200+ certified reciters with ijaza
+// ============================================================
+// Known moshaf_type -> style name mapping (mp3quran.net)
+const MOSHAF_STYLE = {
+  11:  'Murattal',
+  222: 'Mujawwad',
+  6:   'Warsh',
+  7:   'Qalun',
+  8:   "Shu'ba",
+  15:  'Duri (Abu Amr)',
+  16:  'Duri (Al-Kisa\'i)',
+  17:  'Ruwais',
+  18:  'Rawh',
+  19:  'Qunbul',
+  20:  'Ibn Dhakwan',
+  21:  'Hisham',
+  22:  'Khalad',
+  23:  'Khallaf',
+  24:  'Idris',
+  25:  'Murattal (Tajweed)',
+  26:  'Murattal (Slow)',
+  27:  'Murattal (Kids)',
+  28:  'Tilawa',
+  29:  'Murattal (Husary)',
+  30:  'Diraya',
+};
+
+let mp3quranCache = null;
+let mp3quranCacheTs = 0;
+
+app.get('/api/mp3quran/reciters', async (req, res) => {
+  try {
+    const TARGET_RECITERS = 250;
+    const now = Date.now();
+    if (mp3quranCache && now - mp3quranCacheTs < 24 * 60 * 60 * 1000) {
+      return res.json(mp3quranCache);
+    }
+    console.log('\n=== Fetching mp3quran.net Reciters (all moshaf types) ===');
+    const response = await fetch('https://mp3quran.net/api/v3/reciters?language=en');
+    if (!response.ok) throw new Error(`mp3quran API returned ${response.status}`);
+    const data = await response.json();
+
+    // Include one entry per reciter+moshaf, then cap to a stable 250 list.
+    const processed = [];
+    const seen = new Set();
+    data.reciters.forEach(r => {
+      (r.moshaf || []).forEach(m => {
+        if (!m?.server) return;
+        const uid = `mp3_${r.id}_${m.moshaf_type}`;
+        if (seen.has(uid)) return;
+        seen.add(uid);
+        const style = MOSHAF_STYLE[m.moshaf_type] || `Type ${m.moshaf_type}`;
+        const isMurattal = m.moshaf_type === 11;
+        processed.push({
+          id: isMurattal ? `mp3_${r.id}` : uid,
+          name: isMurattal ? r.name : `${r.name} (${style})`,
+          style,
+          server: m.server,
+          source: 'mp3quran',
+        });
+      });
+    });
+    processed.sort((a, b) => a.name.localeCompare(b.name));
+    const limited = processed.slice(0, TARGET_RECITERS);
+
+    mp3quranCache = { reciters: limited, total: limited.length };
+    mp3quranCacheTs = now;
+    console.log(`✓ ${limited.length} reciters (capped to ${TARGET_RECITERS})`);
+    res.json(mp3quranCache);
+  } catch (err) {
+    console.error('Error fetching mp3quran reciters:', err.message);
+    res.status(500).json({ error: 'Failed to fetch mp3quran reciters', message: err.message });
+  }
+});
+
+// MP3QURAN AUDIO — Stream chapter audio from mp3quran.net
+app.get('/api/mp3quran/audio/:server/:chapter', async (req, res) => {
+  try {
+    const server = decodeURIComponent(req.params.server);
+    const chapter = String(req.params.chapter).padStart(3, '0');
+    const url = `${server}${chapter}.mp3`;
+    res.json({ audio_url: url });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get audio URL' });
+  }
+});
+
+// ============================================================
+// OFFICIAL SOURCE PORTAL DATA (NO GOOGLE MAPS SEARCH)
+// ============================================================
+const OFFICIAL_CACHE_TTL = 60 * 60 * 1000;
+const officialDirectoryCache = new Map();
+
+const decodeHtml = (text = '') => text
+  .replace(/&amp;/g, '&')
+  .replace(/&quot;/g, '"')
+  .replace(/&#39;/g, "'")
+  .replace(/&lt;/g, '<')
+  .replace(/&gt;/g, '>')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+const stripTags = (html = '') => decodeHtml(html.replace(/<[^>]*>/g, ' '));
+
+const toTitleCase = (text = '') => text
+  .split(/\s+/)
+  .filter(Boolean)
+  .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+  .join(' ');
+
+const cachedOfficialFetch = async (key, producer) => {
+  const now = Date.now();
+  const cached = officialDirectoryCache.get(key);
+  if (cached && now - cached.ts < OFFICIAL_CACHE_TTL) return cached.data;
+  const data = await producer();
+  officialDirectoryCache.set(key, { ts: now, data });
+  return data;
+};
+
+const getHmsDetailLinks = async () => {
+  const html = await fetch('https://hmsusa.org/certified-listing?type=restaurants').then(r => r.text());
+  const matches = html.match(/\/certified-detail\/[a-z0-9\-]+/gi) || [];
+  return [...new Set(matches)].slice(0, 80);
+};
+
+const parseHmsDetail = async (path) => {
+  const url = `https://hmsusa.org${path}`;
+  const html = await fetch(url).then(r => r.text());
+  const titleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i);
+  const mapMatch = html.match(/https:\/\/www\.google\.com\/maps\/place\/([^"']+)/i);
+  const telMatch = html.match(/href="tel:([^"']+)"/i);
+  const statusMatch = html.match(/\b(Certified|Revoked|Suspended|Expired)\b/i);
+
+  const mappedAddress = mapMatch ? decodeURIComponent(mapMatch[1]).replace(/\+/g, ' ') : '';
+  const slugName = path.replace('/certified-detail/', '').replace(/-/g, ' ');
+  return {
+    source: 'HMS',
+    name: toTitleCase(decodeHtml(titleMatch?.[1] || slugName)),
+    address: mappedAddress,
+    phone: decodeHtml(telMatch?.[1] || ''),
+    status: statusMatch ? statusMatch[1] : 'Certified listing',
+    url,
+  };
+};
+
+const getHmsListings = async () => {
+  return cachedOfficialFetch('hms_listings_v1', async () => {
+    const links = await getHmsDetailLinks();
+    const items = [];
+    for (const path of links) {
+      try {
+        const item = await parseHmsDetail(path);
+        items.push(item);
+      } catch {
+        // Skip malformed entries from source site.
+      }
+      if (items.length >= 60) break;
+    }
+    return items;
+  });
+};
+
+const getHfsaaChapterLinks = async () => {
+  return cachedOfficialFetch('hfsaa_chapters_v1', async () => {
+    const html = await fetch('https://www.hfsaa.org/chapters').then(r => r.text());
+    const regex = /<a\s+href="\/(?!cart|about|articles|donate|faqs|contact|apply|certified-entities)([a-z0-9\-]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+    const found = [];
+    let m;
+    while ((m = regex.exec(html)) !== null) {
+      const slug = m[1];
+      const label = stripTags(m[2]);
+      if (!label || label.length < 2) continue;
+      found.push({
+        source: 'HFSAA',
+        name: `HFSAA ${label}`,
+        address: label,
+        phone: '',
+        status: 'Certified chapter portal',
+        url: `https://www.hfsaa.org/${slug}`,
+      });
+    }
+    const uniq = [];
+    const seen = new Set();
+    for (const item of found) {
+      const key = item.url.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      uniq.push(item);
+    }
+    return uniq;
+  });
+};
+
+const getZabihahMosques = async (queryText) => {
+  const q = encodeURIComponent(queryText || '');
+  const url = `https://www.zabihah.com/search?type=mosques&sort=distance&q=${q}`;
+  const html = await fetch(url).then(r => r.text());
+
+  const regex = /<a[^>]+href="(\/mosques\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  const items = [];
+  const seen = new Set();
+  let m;
+  while ((m = regex.exec(html)) !== null) {
+    const href = m[1];
+    if (seen.has(href)) continue;
+    seen.add(href);
+    const text = stripTags(m[2]);
+    if (!text || text.length < 3) continue;
+    const distanceCut = text.replace(/\s+\d+(\.\d+)?\s*mi away\s*$/i, '').trim();
+    const addrStart = distanceCut.search(/\b\d{1,5}\b/);
+    const name = addrStart > 0 ? distanceCut.slice(0, addrStart).trim() : distanceCut;
+    const addressRaw = addrStart > 0 ? distanceCut.slice(addrStart).trim() : '';
+    const address = addressRaw
+      .replace(/\s+(Sunni|Shia|Ahmadiyya|Non\-denominational)[\s\S]*$/i, '')
+      .replace(/\s+\d+(\.\d+)?\s*·\s*\d+\s*reviews?\s*$/i, '')
+      .trim();
+    items.push({
+      source: 'Zabihah',
+      name,
+      address,
+      phone: '',
+      status: 'Prayer space listing',
+      url: `https://www.zabihah.com${href}`,
+    });
+    if (items.length >= 40) break;
+  }
+  return items;
+};
+
+app.get('/api/official/halal', async (req, res) => {
+  try {
+    const q = String(req.query.q || '').toLowerCase().trim();
+    const source = String(req.query.source || 'both').toLowerCase().trim();
+    const limit = Math.max(1, Math.min(50, parseInt(req.query.limit || '20', 10)));
+    const [hms, hfsaa] = await Promise.all([getHmsListings(), getHfsaaChapterLinks()]);
+    const sourceFiltered = source === 'hms'
+      ? hms
+      : source === 'hfsaa'
+        ? hfsaa
+        : [...hms, ...hfsaa];
+    const filtered = q
+      ? sourceFiltered.filter(item => `${item.name} ${item.address} ${item.status}`.toLowerCase().includes(q))
+      : sourceFiltered;
+    res.json({
+      sourcePolicy: source === 'hms'
+        ? 'Official source only: HMS'
+        : source === 'hfsaa'
+          ? 'Official source only: HFSAA'
+          : 'Official sources only (HMS + HFSAA)',
+      source,
+      total: filtered.length,
+      items: filtered.slice(0, limit),
+    });
+  } catch (err) {
+    console.error('Official halal portal error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch official halal listings', message: err.message });
+  }
+});
+
+app.get('/api/official/mosques', async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim() || 'near me';
+    const limit = Math.max(1, Math.min(50, parseInt(req.query.limit || '20', 10)));
+    const data = await cachedOfficialFetch(`zabihah_mosques_${q.toLowerCase()}`, async () => getZabihahMosques(q));
+    res.json({
+      sourcePolicy: 'Official Muslim directory source only (Zabihah prayer spaces)',
+      total: data.length,
+      items: data.slice(0, limit),
+    });
+  } catch (err) {
+    console.error('Official mosque portal error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch official mosque listings', message: err.message });
+  }
+});
+
+// ============================================================
+// PRAYER TIMES — Aladhan API (free, no auth required)
+// ============================================================
+const prayerTimesCache = new Map();
+
+app.get('/api/prayer-times', async (req, res) => {
+  try {
+    const { city, country, method, school } = req.query;
+    if (!city || !country) {
+      return res.status(400).json({ error: 'city and country are required' });
+    }
+    const methodId = method || '3'; // default MWL
+    const schoolId = school || '0'; // 0: Shafi/Maliki/Hanbali, 1: Hanafi
+    const cacheKey = `${city}_${country}_${methodId}_${schoolId}`;
+    const today = new Date().toDateString();
+
+    // Check cache
+    if (prayerTimesCache.has(cacheKey)) {
+      const cached = prayerTimesCache.get(cacheKey);
+      if (cached.date === today) {
+        return res.json(cached.data);
+      }
+    }
+
+    const url = `https://api.aladhan.com/v1/timingsByCity?city=${encodeURIComponent(city)}&country=${encodeURIComponent(country)}&method=${methodId}&school=${schoolId}`;
+    console.log(`\n=== Prayer Times: ${city}, ${country} (method ${methodId}, school ${schoolId}) ===`);
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Aladhan API returned ${response.status}`);
+    const data = await response.json();
+
+    // Cache for today
+    prayerTimesCache.set(cacheKey, { date: today, data });
+    console.log(`✓ Prayer times fetched for ${city}`);
+    res.json(data);
+  } catch (err) {
+    console.error('Error fetching prayer times:', err.message);
+    res.status(500).json({ error: 'Failed to fetch prayer times', message: err.message });
+  }
+});
+
+// ============================================================
+// QURAN SEARCH (proxied to Quran.com public search API)
+// ============================================================
+app.get('/api/search', checkCredentials, async (req, res) => {
+  try {
+    const { q, translations, size } = req.query;
+    if (!q) return res.status(400).json({ error: 'Query parameter q is required' });
+    const language = 'en';
+    const s = parseInt(size) || 20;
+    const t = translations || '85';
+    const token = await getAccessToken();
+    const url = `${QF_API_BASE}/api/v4/search?q=${encodeURIComponent(q)}&size=${s}&page=0&language=${language}&translations=${t}`;
+    console.log(`♦ Search: "${q}"`);
+    const resp = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+    });
+    if (!resp.ok) throw new Error(`Quran search API returned ${resp.status}`);
+    const data = await resp.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Search error:', err.message);
+    res.status(500).json({ error: 'Search failed', message: err.message });
+  }
+});
+
+// ============================================================
+// SERVER-SIDE CACHING
+// ============================================================
+const apiCache = new Map();
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+const cachedApiRequest = async (endpoint) => {
+  const now = Date.now();
+  if (apiCache.has(endpoint)) {
+    const cached = apiCache.get(endpoint);
+    if (now - cached.ts < CACHE_TTL) {
+      console.log(`  ✓ Cache hit: ${endpoint}`);
+      return cached.data;
+    }
+  }
+  const data = await quranApiRequest(endpoint);
+  apiCache.set(endpoint, { data, ts: now });
+  return data;
+};
 
 // ============================================================
 // START SERVER
