@@ -3,7 +3,7 @@
 ## ✅ Current API Status
 
 **Data Source**: Al Quran Cloud (Free, No Credentials Required)
-**Backend**: Optional (Available for future Quran Foundation API integration)
+**Backend**: Optional (Available for future DEENCORE API integration)
 **Status**: ✨ **Ready to Run** - No setup needed!
 
 ---
@@ -44,9 +44,9 @@ That's it! The app will:
 
 ---
 
-## 🔮 Future: Backend for Quran Foundation API
+## 🔮 Future: Backend for DEENCORE API
 
-When you get Quran Foundation API credentials:
+When you get DEENCORE API credentials:
 
 1. Backend server exists in `server/` directory
 2. Copy `server/.env.example` to `server/.env`
@@ -59,7 +59,7 @@ When you get Quran Foundation API credentials:
 4. Start backend: `npm run server`
 5. Frontend will automatically work with backend when it's running
 
-See `BACKEND_SETUP.md` for full Quran Foundation integration details.
+See `BACKEND_SETUP.md` for full DEENCORE integration details.
 
 ---
 
@@ -99,7 +99,7 @@ http://localhost:5173
 ## 📦 Optional Backend
 
 The `server/` folder contains an optional Express backend that:
-- Acts as proxy for Quran Foundation API (when you have credentials)
+- Acts as proxy for DEENCORE API (when you have credentials)
 - Keeps credentials secure (never expose to frontend)
 - Can be enabled later without changing frontend UI
 
@@ -116,7 +116,7 @@ Choose your next focus:
 - Add new customization options
 - Improve responsiveness
 
-### Option 2: Wait for Quran Foundation Credentials
+### Option 2: Wait for DEENCORE Credentials
 - Request at https://api-docs.quran.foundation/request-access
 - Then enable backend integration
 - More advanced features available

@@ -25,7 +25,7 @@
 
 ## 📝 WHERE TO PUT YOUR CREDENTIALS
 
-### When You Get Email from Quran Foundation
+### When You Get Email from DEENCORE
 
 The email will contain:
 ```
@@ -58,7 +58,7 @@ Token Endpoint: https://auth.quran.foundation/oauth/token
 5. **Check** for success:
    ```
    ✅ Backend server running at http://localhost:3001
-   ✅ Quran Foundation OAuth2 credentials configured
+   ✅ DEENCORE OAuth2 credentials configured
    ```
 
 ---
@@ -97,13 +97,13 @@ Token Endpoint: https://auth.quran.foundation/oauth/token
 
 **Old Flow** (static token):
 ```
-Frontend → Backend with hardcoded token → Quran Foundation
+Frontend → Backend with hardcoded token → DEENCORE
 ```
 
 **New Flow** (OAuth2):
 ```
 Frontend → Backend → Request token via OAuth2 → Cache token
-         → Use cached token → Quran Foundation
+         → Use cached token → DEENCORE
          → Auto-refresh if token expires
 ```
 
@@ -116,6 +116,6 @@ The backend is now ready to:
 - ✅ Cache tokens for performance
 - ✅ Auto-refresh expired tokens
 - ✅ Handle all authentication securely
-- ✅ Serve the frontend data from Quran Foundation
+- ✅ Serve the frontend data from DEENCORE
 
 Just waiting for your credentials! See `BACKEND_OAUTH2_SETUP.md` for detailed instructions.

@@ -5,7 +5,7 @@
 ### Issues Found
 1. **Chapters truncated**: Backend was returning only 2 chapters instead of 114
 2. **Verses truncated**: Large surahs were returning only 10 verses instead of hundreds
-3. **Root Cause**: Quran Foundation API is paginated, but backend wasn't handling pagination
+3. **Root Cause**: DEENCORE API is paginated, but backend wasn't handling pagination
 
 ### Data Examples of Problems
 - **Expected**: 114 surahs in menu, **Got**: Only 2 (Al-Fatihah, Al-Baqarah)
@@ -60,7 +60,7 @@ const allVerses = await fetchAllPages(
 **File**: [server/index.js](server/index.js) - `/api/chapters`
 
 Implemented two-tier approach:
-1. **Tier 1 - API**: Try to fetch from Quran Foundation API
+1. **Tier 1 - API**: Try to fetch from DEENCORE API
    - Works theoretically but prelive API may be limited
    - Returns only 2 chapters in practice
 

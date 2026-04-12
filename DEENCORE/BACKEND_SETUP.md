@@ -3,12 +3,12 @@
 ## ✅ What Was Fixed
 
 ### Problem
-The app was trying to use frontend environment variables (VITE_) for Quran Foundation credentials, which exposed secrets and violated security best practices.
+The app was trying to use frontend environment variables (VITE_) for DEENCORE credentials, which exposed secrets and violated security best practices.
 
 ### Solution
 - **Created a backend server** (`server/index.js`) that handles ALL credentials
 - **Backend-only credentials** - Credentials now stored in `server/.env` only, never exposed to frontend
-- **Updated frontend** - App.jsx now calls local backend routes instead of directly calling Quran Foundation API
+- **Updated frontend** - App.jsx now calls local backend routes instead of directly calling DEENCORE API
 - **Security-first architecture** - Frontend cannot access credentials; all API auth happens on the backend
 
 ---
@@ -40,7 +40,7 @@ The app was trying to use frontend environment variables (VITE_) for Quran Found
    Copy-Item server\.env.example server\.env
    ```
 
-2. Edit `server\.env` and add your Quran Foundation credentials:
+2. Edit `server\.env` and add your DEENCORE credentials:
    ```
    QF_CLIENT_ID=your_client_id_here
    QF_AUTH_TOKEN=your_access_token_here
@@ -64,7 +64,7 @@ npm run server
 You should see:
 ```
 ✅ Backend server running at http://localhost:3001
-✅ Quran Foundation credentials loaded
+✅ DEENCORE credentials loaded
 ```
 
 ### Step 3: In a New Terminal, Start Frontend
@@ -88,7 +88,7 @@ Backend Server (server/index.js)
     ↓
 Reads QF_CLIENT_ID & QF_AUTH_TOKEN from server/.env
     ↓
-Authenticates with Quran Foundation API
+Authenticates with DEENCORE API
     ↓
 Returns data to frontend
 ```
@@ -132,7 +132,7 @@ You should see:
 
 ### Error: "Backend is not configured"
 ```
-Error: "Quran Foundation credentials are not configured in server/.env"
+Error: "DEENCORE credentials are not configured in server/.env"
 ```
 **Fix**: 
 1. Copy `server/.env.example` to `server/.env`
@@ -150,7 +150,7 @@ Failed to load Quran chapters: Failed to connect to localhost:3001
 
 ### Error: "API returned 401"
 ```
-Error: Failed to fetch from Quran Foundation API: API returned 401
+Error: Failed to fetch from DEENCORE API: API returned 401
 ```
 **Fix**:
 1. Check that QF_CLIENT_ID and QF_AUTH_TOKEN in `server/.env` are correct
@@ -163,8 +163,8 @@ Error: Failed to fetch from Quran Foundation API: API returned 401
 ## 📝 Environment Variables Explained
 
 ### server/.env (Backend - KEEP SECRET)
-- `QF_CLIENT_ID` - Your Quran Foundation client ID (SECRET)
-- `QF_AUTH_TOKEN` - Your Quran Foundation auth token (SECRET)
+- `QF_CLIENT_ID` - Your DEENCORE client ID (SECRET)
+- `QF_AUTH_TOKEN` - Your DEENCORE auth token (SECRET)
 - `PORT` - Backend port (default: 3001)
 
 ### .env (Frontend Root - NOT USED)
@@ -180,7 +180,7 @@ Error: Failed to fetch from Quran Foundation API: API returned 401
 ✅ Backend is the only place credentials are used
 ✅ server/.env is in .gitignore (won't be committed)
 ✅ Frontend calls http://localhost:3001 (local backend only)
-✅ Backend authenticates with Quran Foundation securely
+✅ Backend authenticates with DEENCORE securely
 ✅ Credentials are not visible in network requests
 
 ---
@@ -212,7 +212,7 @@ curl http://localhost:3001/api/chapters/1/verses
 ❌ Put credentials in VITE_ variables (frontend)
 ❌ Commit server/.env to git
 ❌ Share your QF_CLIENT_ID or QF_AUTH_TOKEN
-❌ Call Quran Foundation API directly from frontend
+❌ Call DEENCORE API directly from frontend
 ❌ Use public API keys in production
 
 ---

@@ -1,6 +1,6 @@
 # Quran Reader Islamic App
 
-A multi-tab Quran reader built for the Quran Foundation Hackathon. The app lets users browse all 114 surahs, read Arabic text with transliteration, and choose from multiple English/Urdu translations — all with a highly customizable reading experience.
+A multi-tab Quran reader built for the DEENCORE Hackathon. The app lets users browse all 114 surahs, read Arabic text with transliteration, and choose from multiple English/Urdu translations — all with a highly customizable reading experience.
 
 ## Features
 
@@ -16,15 +16,15 @@ A multi-tab Quran reader built for the Quran Foundation Hackathon. The app lets 
 
 - **Frontend:** React 18 + Vite
 - **Backend:** Express with OAuth2 client credentials flow
-- **API:** Quran Foundation API (`apis.quran.foundation`)
+- **API:** DEENCORE API (`apis.quran.foundation`)
 - **Styling:** CSS with custom properties for theming
 
 ## Architecture
 
-The frontend calls a local Express backend (`localhost:3001`), which securely proxies requests to the Quran Foundation API using OAuth2 credentials stored in `server/.env`. This keeps API secrets off the client.
+The frontend calls a local Express backend (`localhost:3001`), which securely proxies requests to the DEENCORE API using OAuth2 credentials stored in `server/.env`. This keeps API secrets off the client.
 
 ```
-React Frontend → Express Backend → Quran Foundation API
+React Frontend → Express Backend → DEENCORE API
        ↑                                     |
        └─────── JSON response ───────────────┘
 ```
@@ -33,11 +33,11 @@ React Frontend → Express Backend → Quran Foundation API
 
 1. **Install dependencies:**
    ```bash
-   cd "Quran Foundation Hackathon"
+   cd "DEENCORE Hackathon"
    npm install
    ```
 
-2. **Set up credentials** — Create `server/.env` with your Quran Foundation API keys:
+2. **Set up credentials** — Create `server/.env` with your DEENCORE API keys:
    ```
    QF_CLIENT_ID=your_client_id
    QF_CLIENT_SECRET=your_client_secret
@@ -58,7 +58,7 @@ React Frontend → Express Backend → Quran Foundation API
 ## Project Structure
 
 ```
-Quran Foundation Hackathon/
+DEENCORE Hackathon/
 ├── server/index.js    # Express backend with OAuth2, pagination, API routes
 ├── src/
 │   ├── App.jsx        # Main React component with Quran reader logic

@@ -50,7 +50,7 @@ const mappedChapters = data.chapters.map((chapter) => ({
 
 ### Bug 3: Verse Field Mapping Mismatch
 **Location**: [src/App.jsx](src/App.jsx) - Verse fetching logic  
-**Issue**: Frontend expected wrong field names from Quran Foundation API
+**Issue**: Frontend expected wrong field names from DEENCORE API
 
 ```javascript
 // BEFORE (BROKEN):
@@ -63,7 +63,7 @@ ayahs: data.verses.map((verse) => ({
 })),
 ```
 
-**Backend Returns From Quran Foundation API**:
+**Backend Returns From DEENCORE API**:
 ```javascript
 {
   verse_number: 1,
@@ -259,7 +259,7 @@ english_name – English name (e.g., "Al-Fatihah")
 arabic_name – Arabic name (e.g., "الفاتحة")
 ```
 
-**Verses (Quran Foundation API)**:
+**Verses (DEENCORE API)**:
 ```
 verse_number – Absolute verse number in Quran
 verse_number_in_surah – Verse number within chapter

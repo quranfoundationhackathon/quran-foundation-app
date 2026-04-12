@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, createContext, useContext, useCallback } from "react";
 import { createPortal } from "react-dom";
 import "./App.css";
-import tempLogo from "./assets/temp-logo.png";
+import deenCoreIcon from "./assets/logo-icon.svg";
 
 // ─── API Base URL ──────────────────────────────────────────
 const API_BASE = 'http://localhost:3001';
@@ -77,6 +77,11 @@ function dbGuestLogin() {
 // READING TIMER & STREAK (localStorage key: qf_reading)
 // ═══════════════════════════════════════════════════════════
 const READING_KEY = 'qf_reading';
+const DAILY_GOAL_KEY = 'dailyGoal';
+const DAILY_GOAL_PROFILE_KEY = 'dailyGoalProfile';
+const DAILY_GOAL_LEVELS = [1, 2, 3, 4, 5, 7, 10];
+const DAILY_GOAL_PROMOTION_STREAK = 2;
+
 function loadReading() {
   try { return JSON.parse(localStorage.getItem(READING_KEY)) || {}; } catch { return {}; }
 }
@@ -125,6 +130,99 @@ function recordVisitedSurah(id, name) {
   localStorage.setItem('recentSurahs', JSON.stringify(recent.slice(0, 5)));
 }
 
+function getDailyGoalTarget(levelIndex) {
+  const safeIndex = Math.max(0, Math.min(DAILY_GOAL_LEVELS.length - 1, Number(levelIndex) || 0));
+  return DAILY_GOAL_LEVELS[safeIndex];
+}
+
+function loadDailyGoalProfile() {
+  try {
+    const profile = JSON.parse(localStorage.getItem(DAILY_GOAL_PROFILE_KEY) || '{}');
+    const safeLevel = Math.max(0, Math.min(DAILY_GOAL_LEVELS.length - 1, Number(profile.levelIndex) || 0));
+    return {
+      levelIndex: safeLevel,
+      masteryStreak: Math.max(0, Number(profile.masteryStreak) || 0),
+      completedDays: Math.max(0, Number(profile.completedDays) || 0),
+    };
+  } catch {
+    return { levelIndex: 0, masteryStreak: 0, completedDays: 0 };
+  }
+}
+
+function saveDailyGoalProfile(profile) {
+  localStorage.setItem(DAILY_GOAL_PROFILE_KEY, JSON.stringify(profile));
+}
+
+function loadDailyGoalState() {
+  try { return JSON.parse(localStorage.getItem(DAILY_GOAL_KEY) || '{}'); } catch { return {}; }
+}
+
+function saveDailyGoalState(state) {
+  localStorage.setItem(DAILY_GOAL_KEY, JSON.stringify(state));
+}
+
+function createDailyGoalState(date, target) {
+  return { date, read: 0, target, counted: {}, completed: false };
+}
+
+function ensureDailyGoalState() {
+  const today = new Date().toDateString();
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterday = yesterdayDate.toDateString();
+
+  const profile = loadDailyGoalProfile();
+  const target = getDailyGoalTarget(profile.levelIndex);
+  let state = loadDailyGoalState();
+
+  if (state.date !== today) {
+    if (state.date === yesterday && !state.completed && profile.masteryStreak > 0) {
+      profile.masteryStreak = 0;
+      saveDailyGoalProfile(profile);
+    }
+    state = createDailyGoalState(today, target);
+    saveDailyGoalState(state);
+    return { state, profile };
+  }
+
+  state = {
+    date: state.date,
+    read: Math.max(0, Number(state.read) || 0),
+    target: Math.max(1, Number(state.target) || target),
+    counted: state.counted && typeof state.counted === 'object' ? state.counted : {},
+    completed: Boolean(state.completed) || (Number(state.read) || 0) >= (Number(state.target) || target),
+  };
+  saveDailyGoalState(state);
+  return { state, profile };
+}
+
+function recordDailyGoalProgress(surahId) {
+  try {
+    const { state, profile } = ensureDailyGoalState();
+    const key = String(surahId);
+    if (state.counted?.[key]) return state;
+
+    state.counted = { ...(state.counted || {}), [key]: true };
+    state.read = (state.read || 0) + 1;
+
+    if (!state.completed && state.read >= state.target) {
+      state.completed = true;
+      profile.masteryStreak = (profile.masteryStreak || 0) + 1;
+      profile.completedDays = (profile.completedDays || 0) + 1;
+      if (profile.masteryStreak >= DAILY_GOAL_PROMOTION_STREAK && profile.levelIndex < DAILY_GOAL_LEVELS.length - 1) {
+        profile.levelIndex += 1;
+        profile.masteryStreak = 0;
+      }
+      saveDailyGoalProfile(profile);
+    }
+
+    saveDailyGoalState(state);
+    return state;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Auth Context ──────────────────────────────────────────
 const AuthContext = createContext();
 const useAuth = () => useContext(AuthContext);
@@ -153,8 +251,8 @@ const defaultSettings = {
   viewMode: 'card',
   spacing: 'normal',
   layoutMode: 'normal',
-  scriptStyle: 'uthmani',
-  translationId: 85,
+  scriptStyle: 'indopak',
+  translationId: 84,
   wordByWord: false,
   tajweedMode: false,
 };
@@ -166,8 +264,8 @@ function SettingsProvider({ children }) {
     try {
       const saved = localStorage.getItem('appSettings');
       const merged = saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
-      const validIds = [85, 57, 234, 161, 80, 39, 33, 78, 208, 136, 140];
-      if (!validIds.includes(merged.translationId)) merged.translationId = 85;
+      const validIds = [84, 85, 57, 234, 161, 80, 39, 33, 78, 208, 136, 140];
+      if (!validIds.includes(merged.translationId)) merged.translationId = 84;
       return merged;
     } catch {
       return defaultSettings;
@@ -175,6 +273,24 @@ function SettingsProvider({ children }) {
   });
 
   const [showSettings, setShowSettings] = useState(false);
+
+  useEffect(() => {
+    try {
+      const migrationKey = 'translationDefaultMigrated_84';
+      if (localStorage.getItem(migrationKey)) return;
+      setSettings(prev => prev.translationId === 85 ? { ...prev, translationId: 84 } : prev);
+      localStorage.setItem(migrationKey, '1');
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      const migrationKey = 'scriptDefaultMigrated_indopak';
+      if (localStorage.getItem(migrationKey)) return;
+      setSettings(prev => prev.scriptStyle === 'uthmani' ? { ...prev, scriptStyle: 'indopak' } : prev);
+      localStorage.setItem(migrationKey, '1');
+    } catch {}
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('appSettings', JSON.stringify(settings));
@@ -661,8 +777,10 @@ const SCRIPT_CLASS_MAP = {
 // ─── Daily Rotating Content ───────────────────────────────
 
 const getDayIndex = (pool) => {
-  const daysSinceEpoch = Math.floor(Date.now() / 86400000);
-  return daysSinceEpoch % pool.length;
+  const d = new Date();
+  // Use local midnight so content rotates at user's midnight, not UTC
+  const localDaysSinceEpoch = Math.floor((Date.now() - d.getTimezoneOffset() * 60000) / 86400000);
+  return localDaysSinceEpoch % pool.length;
 };
 
 const DAILY_VERSES = [
@@ -700,6 +818,7 @@ const DAILY_REFLECTIONS = [
 function SettingsPanel() {
   const { settings, updateSetting, resetSection, setShowSettings } = useSettings();
   const [availableTranslations, setAvailableTranslations] = useState([]);
+  const [hexDraft, setHexDraft] = useState('');
 
   useEffect(() => {
     fetch(`${API_BASE}/api/translations`)
@@ -751,7 +870,7 @@ function SettingsPanel() {
                   <button key={c}
                     className={`custom-color-swatch ${settings.customAccent === c ? 'active' : ''}`}
                     style={{ background: c }}
-                    onClick={() => updateSetting('customAccent', c)}
+                    onClick={() => { updateSetting('customAccent', c); setHexDraft(c.replace('#', '')); }}
                     title={c}
                   />
                 ))}
@@ -763,21 +882,30 @@ function SettingsPanel() {
                   className="hex-input"
                   maxLength={6}
                   placeholder="HEX"
-                  value={(settings.customAccent || '').replace('#', '')}
+                  value={hexDraft}
                   onChange={e => {
                     const v = e.target.value.replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
+                    setHexDraft(v);
                     if (v.length === 6) updateSetting('customAccent', '#' + v);
+                  }}
+                  onFocus={() => {
+                    // Pre-fill with current accent so user can edit it
+                    setHexDraft((settings.customAccent || '').replace('#', ''));
                   }}
                   onBlur={e => {
                     const v = e.target.value.replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
-                    if (v.length === 6) updateSetting('customAccent', '#' + v);
+                    if (v.length === 6) {
+                      updateSetting('customAccent', '#' + v);
+                    }
+                    // Reset draft to applied value (or empty) so it stays in sync
+                    setHexDraft((settings.customAccent || '').replace('#', ''));
                   }}
                 />
                 {settings.customAccent && (
                   <div className="custom-preview" style={{ background: settings.customAccent }} />
                 )}
                 {settings.customAccent && (
-                  <button className="accent-reset-btn" onClick={() => updateSetting('customAccent', '')}>
+                  <button className="accent-reset-btn" onClick={() => { updateSetting('customAccent', ''); setHexDraft(''); }}>
                     Reset
                   </button>
                 )}
@@ -944,7 +1072,15 @@ function Home({ onNavigate }) {
   const [lastRead, setLastRead] = useState(null);
   const [recentSurahs, setRecentSurahs] = useState([]);
   const [nextPrayerPreview, setNextPrayerPreview] = useState(null);
-  const [dailyGoal, setDailyGoal] = useState({ read: 0, target: 1 });
+  const [dailyGoal, setDailyGoal] = useState({
+    read: 0,
+    target: 1,
+    levelIndex: 0,
+    masteryStreak: 0,
+    promotionNeed: DAILY_GOAL_PROMOTION_STREAK,
+    nextTarget: DAILY_GOAL_LEVELS[1] || 1,
+    atMaxLevel: false,
+  });
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -970,13 +1106,19 @@ function Home({ onNavigate }) {
 
     setRecentSurahs(loadRecentSurahs());
 
-    // Daily goal
+    // Daily goal with adaptive progression
     try {
-      const today = new Date().toDateString();
-      const goalData = JSON.parse(localStorage.getItem('dailyGoal') || '{}');
-      if (goalData.date === today) {
-        setDailyGoal({ read: goalData.read || 0, target: 1 });
-      }
+      const { state, profile } = ensureDailyGoalState();
+      const atMaxLevel = profile.levelIndex >= DAILY_GOAL_LEVELS.length - 1;
+      setDailyGoal({
+        read: state.read || 0,
+        target: state.target || getDailyGoalTarget(profile.levelIndex),
+        levelIndex: profile.levelIndex,
+        masteryStreak: profile.masteryStreak || 0,
+        promotionNeed: DAILY_GOAL_PROMOTION_STREAK,
+        nextTarget: atMaxLevel ? getDailyGoalTarget(profile.levelIndex) : getDailyGoalTarget(profile.levelIndex + 1),
+        atMaxLevel,
+      });
     } catch {}
 
     // Next prayer preview — fetch real times from Aladhan API
@@ -1025,7 +1167,7 @@ function Home({ onNavigate }) {
     setLoadingRandom(true);
     try {
       const chNum = Math.floor(Math.random() * 114) + 1;
-      const res = await fetch(`${API_BASE}/api/chapters/${chNum}/verses/85`);
+      const res = await fetch(`${API_BASE}/api/chapters/${chNum}/verses/${settings.translationId}`);
       if (!res.ok) throw new Error();
       const data = await res.json();
       if (data.verses?.length) {
@@ -1193,14 +1335,22 @@ function Home({ onNavigate }) {
       <div className="home-section-card">
         <div className="home-section-header">
           <span className="home-section-icon"><IconTarget /></span>
-          <h4 className="home-section-title">Daily Goal</h4>
+          <h4 className="home-section-title">Daily Goal - Level {dailyGoal.levelIndex + 1}</h4>
         </div>
         <div className="home-goal-row">
           <div className="home-goal-info">
-            <h4>Read {dailyGoal.target} surah today</h4>
-            <p>{dailyGoal.read >= dailyGoal.target ? 'Masha\'Allah! Goal achieved!' : 'Keep your streak going'}</p>
+            <h4>Read {dailyGoal.target} unique surah{dailyGoal.target > 1 ? 's' : ''} today</h4>
+            <p>{dailyGoal.read >= dailyGoal.target ? 'Goal complete. Keep this up to unlock harder targets.' : 'Complete today\'s mission to build mastery.'}</p>
           </div>
           <div className="home-goal-badge">{dailyGoal.read} / {dailyGoal.target}</div>
+        </div>
+        <div className="home-goal-meta">
+          <span>
+            Mastery streak: {dailyGoal.masteryStreak}/{dailyGoal.promotionNeed}
+          </span>
+          <span>
+            {dailyGoal.atMaxLevel ? 'Max level reached' : `Next level target: ${dailyGoal.nextTarget}/day`}
+          </span>
         </div>
         <div className="home-progress-bar">
           <div className="home-progress-fill" style={{ width: `${Math.min(100, (dailyGoal.read / dailyGoal.target) * 100)}%` }} />
@@ -1364,27 +1514,27 @@ const IconArrowRight = () => (
   </svg>
 );
 
-// ─── Available Reciters — QF reciters as defaults, mp3quran loaded dynamically ─
+// ─── Available Reciters — DC reciters as defaults, mp3quran loaded dynamically ─
 
 const QF_RECITERS = [
-  { id: 1, name: 'Abdul Basit (Murattal)', style: 'Murattal', source: 'qf' },
-  { id: 2, name: 'Abdul Basit (Mujawwad)', style: 'Mujawwad', source: 'qf' },
-  { id: 3, name: 'Abdur-Rahman as-Sudais', style: 'Murattal', source: 'qf' },
-  { id: 4, name: 'Abu Bakr al-Shatri', style: 'Murattal', source: 'qf' },
-  { id: 5, name: 'Hani ar-Rifai', style: 'Murattal', source: 'qf' },
-  { id: 6, name: 'Mahmoud Khaleel Al-Husary', style: 'Murattal', source: 'qf' },
-  { id: 12, name: 'Al-Husary (Muallim)', style: 'Muallim', source: 'qf' },
-  { id: 9, name: 'Muhammad Siddiq al-Minshawi', style: 'Murattal', source: 'qf' },
-  { id: 168, name: 'Al-Minshawi (with kids)', style: 'Muallim', source: 'qf' },
-  { id: 10, name: "Sa'ud ash-Shuraym", style: 'Murattal', source: 'qf' },
-  { id: 13, name: 'Saad al-Ghamdi', style: 'Murattal', source: 'qf' },
-  { id: 19, name: 'Ahmed ibn Ali al-Ajmy', style: 'Murattal', source: 'qf' },
-  { id: 159, name: 'Maher al-Muaiqly', style: 'Murattal', source: 'qf' },
-  { id: 160, name: 'Bandar Baleela', style: 'Murattal', source: 'qf' },
-  { id: 158, name: 'Abdullah Ali Jabir', style: 'Murattal', source: 'qf' },
-  { id: 161, name: 'Khalifah Al Tunaiji', style: 'Murattal', source: 'qf' },
-  { id: 174, name: 'Yasser ad-Dussary', style: 'Murattal', source: 'qf' },
-  { id: 175, name: 'Abdullah Hamad Abu Sharida', style: 'Murattal', source: 'qf' },
+  { id: 1, name: 'Abdul Basit (Murattal)', style: 'Murattal', source: 'dc' },
+  { id: 2, name: 'Abdul Basit (Mujawwad)', style: 'Mujawwad', source: 'dc' },
+  { id: 3, name: 'Abdur-Rahman as-Sudais', style: 'Murattal', source: 'dc' },
+  { id: 4, name: 'Abu Bakr al-Shatri', style: 'Murattal', source: 'dc' },
+  { id: 5, name: 'Hani ar-Rifai', style: 'Murattal', source: 'dc' },
+  { id: 6, name: 'Mahmoud Khaleel Al-Husary', style: 'Murattal', source: 'dc' },
+  { id: 12, name: 'Al-Husary (Muallim)', style: 'Muallim', source: 'dc' },
+  { id: 9, name: 'Muhammad Siddiq al-Minshawi', style: 'Murattal', source: 'dc' },
+  { id: 168, name: 'Al-Minshawi (with kids)', style: 'Muallim', source: 'dc' },
+  { id: 10, name: "Sa'ud ash-Shuraym", style: 'Murattal', source: 'dc' },
+  { id: 13, name: 'Saad al-Ghamdi', style: 'Murattal', source: 'dc' },
+  { id: 19, name: 'Ahmed ibn Ali al-Ajmy', style: 'Murattal', source: 'dc' },
+  { id: 159, name: 'Maher al-Muaiqly', style: 'Murattal', source: 'dc' },
+  { id: 160, name: 'Bandar Baleela', style: 'Murattal', source: 'dc' },
+  { id: 158, name: 'Abdullah Ali Jabir', style: 'Murattal', source: 'dc' },
+  { id: 161, name: 'Khalifah Al Tunaiji', style: 'Murattal', source: 'dc' },
+  { id: 174, name: 'Yasser ad-Dussary', style: 'Murattal', source: 'dc' },
+  { id: 175, name: 'Abdullah Hamad Abu Sharida', style: 'Murattal', source: 'dc' },
 ];
 
 // ─── Custom Reciter Picker (themed dropdown) ──────────────
@@ -1420,7 +1570,7 @@ function ReciterPicker({ reciters, selected, onChange }) {
     setOpen(!open);
   };
 
-  const qfReciters = reciters.filter(r => r.source === 'qf');
+  const qfReciters = reciters.filter(r => r.source === 'dc');
   const mp3Reciters = reciters.filter(r => r.source === 'mp3quran');
 
   // Build unique style tabs from mp3 reciters
@@ -2000,18 +2150,8 @@ function Quran({ audioControls, onOpenSearch }) {
         setSurah(surahData);
         // Record in recently visited
         recordVisitedSurah(selectedSurah, surahData.englishName);
-        // Update daily goal
-        try {
-          const today = new Date().toDateString();
-          const goalData = JSON.parse(localStorage.getItem('dailyGoal') || '{}');
-          if (goalData.date !== today) {
-            localStorage.setItem('dailyGoal', JSON.stringify({ date: today, read: 1 }));
-          } else if (!goalData.counted?.[selectedSurah]) {
-            const counted = goalData.counted || {};
-            counted[selectedSurah] = true;
-            localStorage.setItem('dailyGoal', JSON.stringify({ date: today, read: (goalData.read || 0) + 1, counted }));
-          }
-        } catch {}
+        // Update adaptive daily goal progression
+        recordDailyGoalProgress(selectedSurah);
       })
       .catch(err => setError(`Failed to load verses: ${err.message}`))
       .finally(() => setLoading(false));
@@ -2388,6 +2528,7 @@ function Salah() {
   const [madhab, setMadhab] = useState(() => localStorage.getItem('salahMadhab') || 'shafi');
   const [timeFormat, setTimeFormat] = useState(() => localStorage.getItem('salahTimeFormat') || '12');
   const [now, setNow] = useState(new Date());
+  const [dateKey, setDateKey] = useState(() => new Date().toDateString());
   const [realTimes, setRealTimes] = useState(null);
   const [timesLoading, setTimesLoading] = useState(false);
   const [completedPrayers, setCompletedPrayers] = useState({});
@@ -2432,6 +2573,15 @@ function Salah() {
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Re-fetch prayer times when the calendar date changes (midnight rollover)
+  useEffect(() => {
+    const id = setInterval(() => {
+      const d = new Date().toDateString();
+      setDateKey(prev => (prev !== d ? d : prev));
+    }, 60000);
+    return () => clearInterval(id);
   }, []);
 
   const computeQibla = useCallback((lat, lng) => {
@@ -2499,7 +2649,7 @@ function Salah() {
         if (!cancelled) setTimesLoading(false);
       });
     return () => { cancelled = true; };
-  }, [location, calcMethod, madhab]);
+  }, [location, calcMethod, madhab, dateKey]);
 
   // Build today's prayer schedule from real or mock times
   const parsePrayerTime = (timeStr) => {
@@ -3581,7 +3731,7 @@ function QuranSearch({ onNavigate, onClose }) {
     if (!q.trim() || q.trim().length < 2) { setResults([]); setSearched(false); return; }
     setLoading(true); setSearched(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(q.trim())}&translations=85&size=30`);
+      const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(q.trim())}&translations=${settings.translationId}&size=30`);
       if (!res.ok) throw new Error(`${res.status}`);
       const data = await res.json();
       const raw = data.search?.results || data.results || [];
@@ -3688,7 +3838,7 @@ function QuranSearch({ onNavigate, onClose }) {
 // ─── Global Audio Player Component ─────────────────────────
 
 function GlobalAudioPlayer({ audio, onClose }) {
-  const { currentTime, duration, playing, loading, surahName, surahNumber, ayahInfo, volume, repeatMode, speed, canStepAyah } = audio;
+  const { currentTime, duration, playing, loading, surahName, surahNumber, ayahInfo, volume, repeatMode, speed, canPrevAyah, canNextAyah } = audio;
   const [showVolume, setShowVolume] = useState(false);
   const repeatLabel = repeatMode === 'off' ? '' : (repeatMode === 'inf' ? '∞' : repeatMode);
 
@@ -3763,11 +3913,29 @@ function GlobalAudioPlayer({ audio, onClose }) {
         {ayahInfo && <span className="global-player-ayah">{ayahInfo}</span>}
       </div>
       <div className="global-player-controls">
-        <button className="gp-btn" onClick={audio.onPrevAyah} title="Previous ayah" disabled={!canStepAyah}><IconSkipBack /></button>
+        <button
+          className="gp-btn gp-transport"
+          onClick={audio.onPrevAyah}
+          title="Previous ayah"
+          aria-label="Previous ayah"
+          disabled={!canPrevAyah}
+        >
+          <IconSkipBack />
+          <span className="gp-transport-label">Prev</span>
+        </button>
         <button className="gp-btn gp-play" onClick={audio.onTogglePlay} title={playing ? 'Pause' : 'Play'}>
           {loading ? <span className="gp-spinner" /> : playing ? <IconPause /> : <IconPlaySmall />}
         </button>
-        <button className="gp-btn" onClick={audio.onNextAyah} title="Next ayah" disabled={!canStepAyah}><IconSkipForward /></button>
+        <button
+          className="gp-btn gp-transport"
+          onClick={audio.onNextAyah}
+          title="Next ayah"
+          aria-label="Next ayah"
+          disabled={!canNextAyah}
+        >
+          <IconSkipForward />
+          <span className="gp-transport-label">Next</span>
+        </button>
       </div>
       <div className="global-player-timeline">
         <span className="gp-time">{formatTime(currentTime)}</span>
@@ -3877,7 +4045,7 @@ function AppShell({ tab, setTab }) {
     try {
       const saved = localStorage.getItem('selectedReciter');
       if (!saved) return 1;
-      // mp3quran IDs are strings like 'mp3_43', QF IDs are numbers
+      // mp3quran IDs are strings like 'mp3_43', DC IDs are numbers
       return saved.startsWith('mp3_') ? saved : (parseInt(saved) || 1);
     } catch { return 1; }
   });
@@ -4016,14 +4184,13 @@ function AppShell({ tab, setTab }) {
     if (!globalSurahInfo?.number) return;
     if (Array.isArray(globalAyahPlaylist) && globalAyahPlaylist.length > 0) {
       const idx = globalAyahPlaylist.findIndex(item => item.ayahNumber === globalAyahNum);
-      const baseIndex = idx >= 0 ? idx : 0;
+      const baseIndex = idx >= 0 ? idx : (delta > 0 ? 0 : 1);
       const targetIndex = baseIndex + delta;
       const next = globalAyahPlaylist[targetIndex];
       if (!next?.url) return;
       playGlobalAudio(next.url, globalSurahInfo, globalAudioMode || 'ayah', next.ayahNumber, { ayahPlaylist: globalAyahPlaylist, autoAdvance: globalAutoAdvance });
       return;
     }
-    if (!globalAyahNum) return;
     try {
       const res = await fetch(`${API_BASE}/api/audio/verse/${globalReciter}/${globalSurahInfo.number}`);
       if (!res.ok) return;
@@ -4031,7 +4198,10 @@ function AppShell({ tab, setTab }) {
       const files = data?.audio_files;
       if (!Array.isArray(files) || files.length === 0) return;
 
-      const targetAyah = globalAyahNum + delta;
+      const currentAyah = Number(globalAyahNum) || 1;
+      const targetAyah = (globalAudioMode === 'surah' && !globalAyahNum && delta < 0)
+        ? 1
+        : currentAyah + delta;
       if (targetAyah < 1) return;
       if (globalSurahInfo.totalAyahs && targetAyah > globalSurahInfo.totalAyahs) return;
 
@@ -4060,6 +4230,21 @@ function AppShell({ tab, setTab }) {
   };
 
   const showPlayer = globalAudioState !== 'idle' && globalSurahInfo;
+  const hasSurahContext = !!globalSurahInfo?.number;
+  const ayahMin = 1;
+  const ayahMax = globalSurahInfo?.totalAyahs || null;
+  const hasPlaylist = Array.isArray(globalAyahPlaylist) && globalAyahPlaylist.length > 0;
+  const playlistIndex = hasPlaylist ? globalAyahPlaylist.findIndex(item => item.ayahNumber === globalAyahNum) : -1;
+  const canPrevAyah = hasSurahContext && (
+    (hasPlaylist && playlistIndex > 0) ||
+    (globalAudioMode === 'ayah' && Number(globalAyahNum) > ayahMin) ||
+    (globalAudioMode === 'surah')
+  );
+  const canNextAyah = hasSurahContext && (
+    (hasPlaylist && playlistIndex >= 0 && playlistIndex < globalAyahPlaylist.length - 1) ||
+    (globalAudioMode === 'ayah' && (!ayahMax || Number(globalAyahNum) < ayahMax)) ||
+    (globalAudioMode === 'surah')
+  );
 
   // ── Global search overlay ──
   const [showSearch, setShowSearch] = useState(false);
@@ -4165,8 +4350,11 @@ function AppShell({ tab, setTab }) {
     >
       <header className="app-chrome" aria-label="Top controls">
         <div className="app-chrome-group app-chrome-group-left">
-          <div className="app-corner-logo" title="Quran Foundation">
-            <img src={tempLogo} alt="Quran Foundation logo" className="app-corner-logo-img" />
+          <div className="app-corner-logo" title="DeenCore">
+            <img src={deenCoreIcon} alt="" className="app-corner-logo-img" aria-hidden="true" />
+            <span className="app-corner-wordmark">
+              <span className="app-corner-wordmark-deen">Deen</span><span className="app-corner-wordmark-core">Core</span>
+            </span>
           </div>
           <div className="nav-history-btns">
             <button className="nav-hist-btn" onClick={goBack} disabled={navHistory.length === 0} title="Go Back">
@@ -4210,7 +4398,8 @@ function AppShell({ tab, setTab }) {
             volume: globalVolume,
             speed: globalPlaybackRate,
             repeatMode: globalRepeatMode,
-            canStepAyah: Array.isArray(globalAyahPlaylist) && globalAyahPlaylist.length > 1,
+            canPrevAyah,
+            canNextAyah,
             onTogglePlay: toggleGlobalPlay,
             onSeek: seekGlobalAudio,
             onVolumeChange: setGlobalVolume,
@@ -4291,7 +4480,8 @@ function SocialLoginModal({ provider, onConfirm, onClose }) {
 }
 
 function AuthPage({ onLogin }) {
-  const [mode, setMode] = useState('signin');
+  const [entryMode, setEntryMode] = useState('guest');
+  const [accountMode, setAccountMode] = useState('signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -4304,10 +4494,10 @@ function AuthPage({ onLogin }) {
     setError('');
     if (!email.trim()) return setError('Email is required.');
     if (!password) return setError('Password is required.');
-    if (mode === 'signup' && !name.trim()) return setError('Name is required.');
+    if (accountMode === 'signup' && !name.trim()) return setError('Name is required.');
     setLoading(true);
     setTimeout(() => {
-      const result = mode === 'signup'
+      const result = accountMode === 'signup'
         ? dbSignUp(name.trim(), email.trim(), password)
         : dbSignIn(email.trim(), password);
       setLoading(false);
@@ -4336,11 +4526,11 @@ function AuthPage({ onLogin }) {
           <div className="auth-side-orb auth-side-orb-a" />
           <div className="auth-side-orb auth-side-orb-b" />
           <div className="auth-logo-wrap">
-              <img src={tempLogo} alt="Quran Foundation logo" className="auth-logo-icon" />
-            <span className="auth-logo-text">Quran Foundation</span>
+            <img src={deenCoreIcon} alt="DeenCore" className="auth-logo-icon" />
+            <span className="auth-logo-text"><span className="auth-logo-deen">Deen</span>Core</span>
           </div>
           <p className="auth-side-kicker">Focused reading, reflection, and audio in one place.</p>
-          <h1 className="auth-side-title">Welcome back to Quran Foundation.</h1>
+          <h1 className="auth-side-title">Welcome back to DeenCore.</h1>
           <div className="auth-side-features">
             <div className="auth-side-feature"><span>114</span> Surahs with search and translation</div>
             <div className="auth-side-feature"><span>250</span> Reciter options available</div>
@@ -4350,65 +4540,106 @@ function AuthPage({ onLogin }) {
 
         <div className="auth-card">
           <div className="auth-card-header">
-            <h2 className="auth-heading">{mode === 'signin' ? 'Welcome back' : 'Create your account'}</h2>
-            <p className="auth-subheading">{mode === 'signin' ? 'Pick up exactly where you left off.' : 'Save bookmarks, streaks, and reading progress locally.'}</p>
+            <h2 className="auth-heading">
+              {entryMode === 'guest' ? 'Jump right in' : (accountMode === 'signin' ? 'Welcome back' : 'Create your account')}
+            </h2>
+            <p className="auth-subheading">
+              {entryMode === 'guest'
+                ? 'No account needed. Start reading immediately.'
+                : (accountMode === 'signin' ? 'Pick up exactly where you left off.' : 'Save bookmarks, streaks, and reading progress locally.')}
+            </p>
           </div>
 
           <div className="auth-tabs">
-            <button className={`auth-tab ${mode === 'signin' ? 'active' : ''}`} onClick={() => { setMode('signin'); setError(''); }}>Sign In</button>
-            <button className={`auth-tab ${mode === 'signup' ? 'active' : ''}`} onClick={() => { setMode('signup'); setError(''); }}>Sign Up</button>
-          </div>
-
-          <div className="auth-social-grid">
-            {['google', 'microsoft', 'apple', 'github'].map(p => (
-              <button key={p} className={`auth-social-btn auth-social-${p}`} onClick={() => handleSocial(p)}>
-                <SocialIcon provider={p} />
-                <span>{SOCIAL_LABELS[p]}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="auth-divider"><span>or continue with email</span></div>
-
-          <div className="auth-form">
-            {mode === 'signup' && (
-              <div className="auth-field">
-                <label>Full Name</label>
-                <input type="text" placeholder="Your name" value={name} onChange={e => setName(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && submit()} className="auth-input" />
-              </div>
-            )}
-            <div className="auth-field">
-              <label>Email</label>
-              <input type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && submit()} className="auth-input" autoComplete="email" />
-            </div>
-            <div className="auth-field">
-              <label>Password</label>
-              <div className="auth-pass-wrap">
-                <input type={showPass ? 'text' : 'password'} placeholder="••••••••" value={password}
-                  onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()}
-                  className="auth-input" autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} />
-                <button className="auth-pass-toggle" onClick={() => setShowPass(v => !v)} tabIndex={-1}>
-                  {showPass ? 'Hide' : 'Show'}
-                </button>
-              </div>
-            </div>
-
-            {error && <div className="auth-error">{error}</div>}
-
-            <button className="auth-submit" onClick={submit} disabled={loading}>
-              {loading ? <span className="auth-spinner-sm" /> : (mode === 'signin' ? 'Sign In' : 'Create Account')}
+            <button
+              className={`auth-tab guest-cta ${entryMode === 'guest' ? 'active' : ''}`}
+              onClick={() => { setEntryMode('guest'); setError(''); }}
+            >
+              Skip Sign-In
+            </button>
+            <button
+              className={`auth-tab ${entryMode === 'account' ? 'active' : ''}`}
+              onClick={() => { setEntryMode('account'); setError(''); }}
+            >
+              Sign In
             </button>
           </div>
 
-          <div className="auth-divider-light" />
+          {entryMode === 'guest' ? (
+            <div className="auth-quick-continue">
+              <button className="auth-guest-btn auth-guest-btn-primary" onClick={handleGuest}>
+                Continue Without Sign-In
+              </button>
+              <p className="auth-disclaimer">Fastest option. Guest mode stays local to this device.</p>
+            </div>
+          ) : (
+            <>
+              <div className="auth-social-grid">
+                {['google', 'microsoft', 'apple', 'github'].map(p => (
+                  <button key={p} className={`auth-social-btn auth-social-${p}`} onClick={() => handleSocial(p)}>
+                    <SocialIcon provider={p} />
+                    <span>{SOCIAL_LABELS[p]}</span>
+                  </button>
+                ))}
+              </div>
 
-          <button className="auth-guest-btn" onClick={handleGuest}>
-            Continue as Guest
-          </button>
+              <div className="auth-divider"><span>or continue with email</span></div>
 
-          <p className="auth-disclaimer">Guest mode stays local to this device.</p>
+              <div className="auth-form">
+                {accountMode === 'signup' && (
+                  <div className="auth-field">
+                    <label>Full Name</label>
+                    <input type="text" placeholder="Your name" value={name} onChange={e => setName(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && submit()} className="auth-input" />
+                  </div>
+                )}
+                <div className="auth-field">
+                  <label>Email</label>
+                  <input type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && submit()} className="auth-input" autoComplete="email" />
+                </div>
+                <div className="auth-field">
+                  <label>Password</label>
+                  <div className="auth-pass-wrap">
+                    <input type={showPass ? 'text' : 'password'} placeholder="••••••••" value={password}
+                      onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()}
+                      className="auth-input" autoComplete={accountMode === 'signin' ? 'current-password' : 'new-password'} />
+                    <button className="auth-pass-toggle" onClick={() => setShowPass(v => !v)} tabIndex={-1}>
+                      {showPass ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                </div>
+
+                {error && <div className="auth-error">{error}</div>}
+
+                <button className="auth-submit" onClick={submit} disabled={loading}>
+                  {loading ? <span className="auth-spinner-sm" /> : (accountMode === 'signin' ? 'Sign In' : 'Create Account')}
+                </button>
+
+                <p className="auth-inline-switch">
+                  {accountMode === 'signin' ? 'New here?' : 'Already have an account?'}
+                  <button
+                    type="button"
+                    className="auth-inline-switch-btn"
+                    onClick={() => {
+                      setAccountMode(accountMode === 'signin' ? 'signup' : 'signin');
+                      setError('');
+                    }}
+                  >
+                    {accountMode === 'signin' ? 'Create account' : 'Sign in'}
+                  </button>
+                </p>
+              </div>
+
+              <div className="auth-divider-light" />
+
+              <button className="auth-guest-btn" onClick={() => { setEntryMode('guest'); setError(''); }}>
+                Skip Sign-In Instead
+              </button>
+
+              <p className="auth-disclaimer">Guest mode stays local to this device.</p>
+            </>
+          )}
         </div>
       </div>
 

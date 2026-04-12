@@ -33,9 +33,9 @@ This guide has:
 **TLDR**: 
 1. Follow instructions in `BACKEND_SETUP.md`
 2. Delete this file if you want (it's deprecated)
-3. Never put Quran Foundation credentials in frontend .env files again
+3. Never put DEENCORE credentials in frontend .env files again
 
-   with your actual credentials from Quran Foundation.
+   with your actual credentials from DEENCORE.
 
 ### Step 3: Run the App
 
@@ -44,7 +44,7 @@ npm install
 npm run dev
 ```
 
-The app should now fetch Quran data from the official Quran Foundation API.
+The app should now fetch Quran data from the official DEENCORE API.
 
 ---
 
@@ -155,7 +155,7 @@ To show multiple translations, update the fetch to include comma-separated IDs:
 
 ## API Documentation
 
-Full Quran Foundation API documentation:
+Full DEENCORE API documentation:
 - https://api-docs.quran.foundation/
 - Official SDK: https://npmjs.com/package/@quranjs/api
 
@@ -163,7 +163,7 @@ Full Quran Foundation API documentation:
 
 - Discord: https://discord.gg/SpEeJ5bWEQ
 - GitHub: https://github.com/quran
-- Report issues: https://github.com/quran/qf-api-docs/issues
+- Report issues: https://github.com/quran/dc-api-docs/issues
 
 ---
 

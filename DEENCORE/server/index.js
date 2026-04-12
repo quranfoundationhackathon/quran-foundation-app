@@ -31,7 +31,7 @@ let tokenCache = {
 };
 
 // ============================================================
-// QURAN FOUNDATION OAUTH2 TOKEN MANAGEMENT
+// DEENCORE OAUTH2 TOKEN MANAGEMENT
 // ============================================================
 const getAccessToken = async () => {
   try {
@@ -41,7 +41,7 @@ const getAccessToken = async () => {
       return tokenCache.access_token;
     }
 
-    console.log('→ Requesting new access token from Quran Foundation...');
+    console.log('→ Requesting new access token from DEENCORE...');
 
     // Create Basic Auth header (client_id:client_secret in Base64)
     const credentials = Buffer.from(`${QF_CLIENT_ID}:${QF_CLIENT_SECRET}`).toString('base64');
@@ -80,7 +80,7 @@ const getAccessToken = async () => {
 };
 
 // ============================================================
-// QURAN FOUNDATION CONTENT API HELPER WITH PAGINATION
+// DEENCORE CONTENT API HELPER WITH PAGINATION
 // ============================================================
 const quranApiRequest = async (endpoint) => {
   try {
@@ -110,7 +110,7 @@ const quranApiRequest = async (endpoint) => {
 
         if (!retryResponse.ok) {
           throw new Error(
-            `Quran Foundation API returned ${retryResponse.status}: ${retryResponse.statusText}`
+            `DEENCORE API returned ${retryResponse.status}: ${retryResponse.statusText}`
           );
         }
 
@@ -118,18 +118,18 @@ const quranApiRequest = async (endpoint) => {
       }
 
       throw new Error(
-        `Quran Foundation API returned ${response.status}: ${response.statusText}`
+        `DEENCORE API returned ${response.status}: ${response.statusText}`
       );
     }
 
     return await response.json();
   } catch (err) {
-    throw new Error(`Failed to fetch from Quran Foundation API: ${err.message}`);
+    throw new Error(`Failed to fetch from DEENCORE API: ${err.message}`);
   }
 };
 
 // ============================================================
-// FETCH ALL VERSES - Paginates through QF API (Arabic text only)
+// FETCH ALL VERSES - Paginates through DC API (Arabic text only)
 // ============================================================
 const fetchVerses = async (chapterId) => {
   const allVerses = [];
@@ -144,7 +144,7 @@ const fetchVerses = async (chapterId) => {
 
     if (!data.verses) {
       if (page === 1) {
-        console.log(`  ⚠ QF API: chapter ${chapterId} not available in this tier`);
+        console.log(`  ⚠ DC API: chapter ${chapterId} not available in this tier`);
       }
       break;
     }
@@ -161,7 +161,7 @@ const fetchVerses = async (chapterId) => {
 };
 
 // ============================================================
-// FETCH ALL TRANSLATIONS - Paginates through QF translation API
+// FETCH ALL TRANSLATIONS - Paginates through DC translation API
 // ============================================================
 const fetchTranslations = async (chapterId, resourceId) => {
   const allTranslations = [];
@@ -217,7 +217,7 @@ const checkCredentials = (req, res, next) => {
   if (!QF_CLIENT_ID || !QF_CLIENT_SECRET) {
     return res.status(500).json({
       error: 'Server configuration error',
-      message: 'Quran Foundation credentials are not configured in server/.env',
+      message: 'DEENCORE credentials are not configured in server/.env',
       details: 'Please add QF_CLIENT_ID and QF_CLIENT_SECRET to server/.env file',
       status: 'MISSING_CREDENTIALS'
     });
@@ -374,7 +374,7 @@ app.get('/api/chapters', checkCredentials, async (req, res) => {
     let apiSuccess = false;
     
     try {
-      console.log('Attempting to fetch from Quran Foundation API...');
+      console.log('Attempting to fetch from DEENCORE API...');
       const data = await cachedApiRequest('/chapters?language=en');
       
       if (data.chapters && Array.isArray(data.chapters) && data.chapters.length > 0) {
@@ -454,7 +454,7 @@ app.get('/api/chapters/:chapterNumber/verses/:translationId', checkCredentials, 
     if (rawVerses.length === 0) {
       return res.status(404).json({
         error: 'Chapter not available',
-        message: `Chapter ${chapter} is not yet available in the current Quran Foundation API tier`,
+        message: `Chapter ${chapter} is not yet available in the current DEENCORE API tier`,
         status: 'NOT_AVAILABLE'
       });
     }
@@ -499,7 +499,7 @@ app.get('/api/chapters/:chapterNumber/verses', checkCredentials, async (req, res
     if (rawVerses.length === 0) {
       return res.status(404).json({
         error: 'Chapter not available',
-        message: `Chapter ${chapter} is not yet available in the current Quran Foundation API tier`,
+        message: `Chapter ${chapter} is not yet available in the current DEENCORE API tier`,
         status: 'NOT_AVAILABLE'
       });
     }
@@ -521,6 +521,7 @@ app.get('/api/chapters/:chapterNumber/verses', checkCredentials, async (req, res
 // AVAILABLE TRANSLATIONS - Only IDs confirmed working in this API tier
 // ============================================================
 const AVAILABLE_TRANSLATIONS = [
+  { id: 84,  name: 'Mufti Taqi Usmani (English)', language: 'English', description: 'Mufti Taqi Usmani English translation with Indo Pak script preference' },
   { id: 85,  name: 'M.A.S. Abdel Haleem', language: 'English', description: 'Modern English translation' },
   { id: 57,  name: 'Transliteration',      language: 'English', description: 'Latin-script transliteration' },
   { id: 234, name: 'Fatah Muhammad Jalandhari', language: 'Urdu', description: 'Urdu translation' },
@@ -538,12 +539,12 @@ const AVAILABLE_TRANSLATIONS = [
 app.get('/api/translations', (req, res) => {
   res.json({
     translations: AVAILABLE_TRANSLATIONS,
-    default: 85
+    default: 84
   });
 });
 
 // ============================================================
-// TAFSIR ENDPOINT — Fetch tafsirs for a chapter (QF by_chapter API)
+// TAFSIR ENDPOINT — Fetch tafsirs for a chapter (DC by_chapter API)
 // ============================================================
 const AVAILABLE_TAFSIRS = [
   { id: 169, name: 'Tafsir Ibn Kathir', language: 'English' },
@@ -683,7 +684,7 @@ app.get('/api/audio/verse/:reciterId/:chapterNumber', checkCredentials, async (r
 });
 
 // ============================================================
-// RECITERS ENDPOINT — List available reciters from QF API
+// RECITERS ENDPOINT — List available reciters from DC API
 // ============================================================
 app.get('/api/reciters', checkCredentials, async (req, res) => {
   try {
@@ -1078,11 +1079,11 @@ const cachedApiRequest = async (endpoint) => {
 app.listen(PORT, () => {
   if (QF_CLIENT_ID && QF_CLIENT_SECRET) {
     console.log(`✅ Backend server running at http://localhost:${PORT}`);
-    console.log(`✅ Quran Foundation OAuth2 credentials configured`);
+    console.log(`✅ DEENCORE OAuth2 credentials configured`);
     console.log(`   Using OAuth2 client credentials flow for token management`);
   } else {
     console.log(`⚠️  Backend server running at http://localhost:${PORT}`);
-    console.log(`❌ Quran Foundation credentials NOT found in server/.env`);
+    console.log(`❌ DEENCORE credentials NOT found in server/.env`);
     console.log(`   Required: QF_CLIENT_ID and QF_CLIENT_SECRET`);
     console.log(`   Get credentials from: https://api-docs.quran.foundation/request-access`);
   }

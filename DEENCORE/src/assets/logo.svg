@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 72" fill="none" role="img" aria-label="DeenCore logo">
+  <title>DeenCore</title>
+  <defs>
+    <!-- Crescent mask: white = show, black = hide -->
+    <mask id="cres-mask">
+      <rect width="300" height="72" fill="white"/>
+      <circle cx="46" cy="28" r="20" fill="black"/>
+    </mask>
+
+    <!-- Icon background gradient -->
+    <radialGradient id="icon-bg" cx="38%" cy="36%" r="64%" gradientUnits="userSpaceOnUse"
+                    fx="28" fy="25" x1="0" y1="0" x2="72" y2="72">
+      <stop offset="0%" stop-color="#163564"/>
+      <stop offset="100%" stop-color="#071624"/>
+    </radialGradient>
+
+    <!-- Soft glow for the star -->
+    <filter id="star-glow" color-interpolation-filters="sRGB"
+            x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Soft glow for crescent -->
+    <filter id="cres-glow" color-interpolation-filters="sRGB"
+            x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Outer ring glow -->
+    <filter id="ring-glow" color-interpolation-filters="sRGB"
+            x="-5%" y="-5%" width="110%" height="110%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- ══════════════ ICON MARK ══════════════ -->
+
+  <!-- Background circle -->
+  <circle cx="36" cy="36" r="34" fill="url(#icon-bg)"/>
+
+  <!-- Outer teal ring -->
+  <circle cx="36" cy="36" r="34" stroke="#5d9d94" stroke-width="1.4"
+          opacity="0.65" filter="url(#ring-glow)"/>
+
+  <!-- Inner dashed decorative ring -->
+  <circle cx="36" cy="36" r="27.5" stroke="#5d9d94" stroke-width="0.45"
+          opacity="0.2" stroke-dasharray="2.5 5.5"/>
+
+  <!-- Crescent moon (gold, glowing) -->
+  <circle cx="33" cy="40" r="20" fill="#d4a853"
+          filter="url(#cres-glow)" mask="url(#cres-mask)"/>
+
+  <!-- Crescent edge highlight -->
+  <circle cx="33" cy="40" r="20" stroke="#f0cb76" stroke-width="0.6"
+          opacity="0.35" mask="url(#cres-mask)"/>
+
+  <!--
+    8-pointed star: center (56, 20), outer r=5.5, inner r=2.3
+    Computed via alternating outer/inner at 45° intervals from −90°.
+  -->
+  <path fill="#d4a853" filter="url(#star-glow)"
+    d="M56,14.5
+       L56.88,17.88 L59.89,16.11
+       L58.13,19.12 L61.5,20
+       L58.13,20.88 L59.89,23.89
+       L56.88,22.13 L56,25.5
+       L55.12,22.13 L52.11,23.89
+       L53.87,20.88 L50.5,20
+       L53.87,19.12 L52.11,16.11
+       L55.12,17.88 Z"/>
+
+  <!-- Bottom accent line inside icon -->
+  <line x1="12" y1="61" x2="60" y2="61"
+        stroke="#5d9d94" stroke-width="0.6" opacity="0.25"/>
+
+  <!-- ══════════════ WORDMARK ══════════════ -->
+
+  <!-- "Deen" — light weight, teal -->
+  <text
+    x="84" y="50"
+    font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', system-ui, sans-serif"
+    font-size="36"
+    font-weight="300"
+    letter-spacing="-0.5"
+    fill="#5dada3">Deen</text>
+
+  <!-- "Core" — bold, near-white -->
+  <text
+    x="168" y="50"
+    font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', system-ui, sans-serif"
+    font-size="36"
+    font-weight="700"
+    letter-spacing="-1"
+    fill="#e8eef5">Core</text>
+
+  <!-- Subtle tagline (hidden at small sizes, visible above ~200px wide) -->
+  <text
+    x="84" y="64"
+    font-family="'Inter', 'Segoe UI', system-ui, sans-serif"
+    font-size="9"
+    font-weight="400"
+    letter-spacing="2.5"
+    fill="#5d9d94"
+    opacity="0.55">QURAN · SALAH · REFLECT</text>
+</svg>

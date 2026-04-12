@@ -1,8 +1,8 @@
-# Backend OAuth2 Integration - Quran Foundation Content API
+# Backend OAuth2 Integration - DEENCORE Content API
 
 ## ✅ WHAT CHANGED
 
-Your backend now implements the **official Quran Foundation OAuth2 client credentials flow** instead of using a static token.
+Your backend now implements the **official DEENCORE OAuth2 client credentials flow** instead of using a static token.
 
 ### Old Way (Deprecated) ❌
 - Used a pre-generated static token: `QF_AUTH_TOKEN`
@@ -15,7 +15,7 @@ Your backend now implements the **official Quran Foundation OAuth2 client creden
 - Backend automatically requests access tokens via OAuth2 flow
 - Tokens cached until near expiry
 - Automatic token refresh on 401 errors
-- Follows official Quran Foundation security standards
+- Follows official DEENCORE security standards
 
 ---
 
@@ -33,7 +33,7 @@ Your backend now implements the **official Quran Foundation OAuth2 client creden
 
 ## 📋 HOW TO SET IT UP
 
-### Step 1: Request Credentials from Quran Foundation
+### Step 1: Request Credentials from DEENCORE
 
 1. Visit: **https://api-docs.quran.foundation/request-access**
 2. Fill out the form:
@@ -87,10 +87,10 @@ npm run server
 You should see:
 ```
 ✅ Backend server running at http://localhost:3001
-✅ Quran Foundation OAuth2 credentials configured
+✅ DEENCORE OAuth2 credentials configured
    Using OAuth2 client credentials flow for token management
 
-→ Requesting new access token from Quran Foundation...
+→ Requesting new access token from DEENCORE...
 ✓ Access token obtained (expires in 3600s)
 ```
 
@@ -112,13 +112,13 @@ Visit: `http://localhost:5173` (or whatever port shows)
                     ↓
 3a. YES → Use cached token (fast ⚡)
                     ↓
-3b. NO → Request new token from Quran Foundation
+3b. NO → Request new token from DEENCORE
          POST https://auth.quran.foundation/oauth/token
          with QF_CLIENT_ID and QF_CLIENT_SECRET
                     ↓
 4. Cache token until near expiry (with 60s buffer)
                     ↓
-5. Call Quran Foundation Content API:
+5. Call DEENCORE Content API:
    GET https://apis.quran.foundation/content/api/v4/chapters
    Headers:
    - x-auth-token: [cached_access_token]
@@ -153,7 +153,7 @@ npm run server
 
 Check console output for:
 - ✅ "Backend server running at http://localhost:3001"
-- ✅ "Quran Foundation OAuth2 credentials configured"
+- ✅ "DEENCORE OAuth2 credentials configured"
 - ✅ "Access token obtained" (after first API call)
 
 ### 3. Test Chapters Endpoint
@@ -183,7 +183,7 @@ The backend:
 - **Caches tokens** in memory (not in a file)
 - **Uses token until near expiry** (with 60 second safety buffer)
 - **Automatically refreshes** when token expires
-- **Retries on 401** - If Quran Foundation rejects the token, clears cache and requests a new one
+- **Retries on 401** - If DEENCORE rejects the token, clears cache and requests a new one
 - **No manual intervention needed** - All automatic!
 
 ---
@@ -192,7 +192,7 @@ The backend:
 
 ### Error: "Credentials not configured"
 ```
-❌ Quran Foundation credentials NOT found in server/.env
+❌ DEENCORE credentials NOT found in server/.env
 Required: QF_CLIENT_ID and QF_CLIENT_SECRET
 ```
 
@@ -247,7 +247,7 @@ Just wait a moment and try again.
 ✅ Access tokens NOT sent to frontend
 ✅ Backend handles all authentication
 ✅ All requests go through localhost:3001
-✅ Quran Foundation receives proper x-auth-token header
+✅ DEENCORE receives proper x-auth-token header
 ✅ Token refresh automatic (no manual management needed)
 
 ---
@@ -276,7 +276,7 @@ curl http://localhost:3001/api/chapters/1/verses
 
 ## 🎯 NEXT STEPS
 
-1. ✅ Request credentials from Quran Foundation (wait 24-48 hours)
+1. ✅ Request credentials from DEENCORE (wait 24-48 hours)
 2. ✅ Create `server/.env` with credentials
 3. ✅ Start backend: `npm run server`
 4. ✅ Start frontend: `npm run dev`
@@ -288,10 +288,10 @@ curl http://localhost:3001/api/chapters/1/verses
 
 ## 📖 OFFICIAL DOCUMENTATION
 
-- Quran Foundation: https://api-docs.quran.foundation/
+- DEENCORE: https://api-docs.quran.foundation/
 - Request Access: https://api-docs.quran.foundation/request-access
 - Content API Docs: https://api-docs.quran.foundation/content/v4
 
 ---
 
-**Status**: ✨ OAuth2 implementation complete! Backend is ready to receive your Quran Foundation credentials.
+**Status**: ✨ OAuth2 implementation complete! Backend is ready to receive your DEENCORE credentials.
