@@ -241,7 +241,56 @@ const SOCIAL_COLORS = { google: '#EA4335', microsoft: '#00A4EF', apple: '#000', 
 const defaultSettings = {
   theme: 'dark-navy',
   scriptStyle: 'uthmani',
-  // ... other settings
+  globalTextScale: 1,
+  arabicSize: 2.4,
+  arabicLineHeight: 2.2,
+  translationSize: 1.05,
+  translationLineHeight: 1.8,
+  showTranslation: true,
+  showAyahBadges: true,
+  wordByWord: false,
+  tajweedMode: false,
+  viewMode: 'card',
+  spacing: 'normal',
+  layoutMode: 'wide',
+  translationId: 84,
+  customAccent: '',
+};
+
+const VALID_TRANSLATION_IDS = [84, 85, 57, 234, 161, 80, 39, 33, 78, 208, 136, 140];
+const VALID_THEMES = ['dark-navy', 'light'];
+const VALID_SCRIPT_STYLES = ['uthmani', 'indopak', 'simple', 'naskh'];
+const VALID_VIEW_MODES = ['card', 'flat'];
+const VALID_SPACING = ['tight', 'normal', 'spacious'];
+const VALID_LAYOUTS = ['wide'];
+
+const normalizeNumber = (value, fallback) => {
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+const normalizeSettings = (raw = {}) => {
+  const merged = { ...defaultSettings, ...(raw || {}) };
+
+  return {
+    ...merged,
+    theme: VALID_THEMES.includes(merged.theme) ? merged.theme : defaultSettings.theme,
+    scriptStyle: VALID_SCRIPT_STYLES.includes(merged.scriptStyle) ? merged.scriptStyle : defaultSettings.scriptStyle,
+    viewMode: VALID_VIEW_MODES.includes(merged.viewMode) ? merged.viewMode : defaultSettings.viewMode,
+    spacing: VALID_SPACING.includes(merged.spacing) ? merged.spacing : defaultSettings.spacing,
+    layoutMode: VALID_LAYOUTS.includes(merged.layoutMode) ? merged.layoutMode : defaultSettings.layoutMode,
+    translationId: VALID_TRANSLATION_IDS.includes(Number(merged.translationId)) ? Number(merged.translationId) : defaultSettings.translationId,
+    globalTextScale: normalizeNumber(merged.globalTextScale, defaultSettings.globalTextScale),
+    arabicSize: normalizeNumber(merged.arabicSize, defaultSettings.arabicSize),
+    arabicLineHeight: normalizeNumber(merged.arabicLineHeight, defaultSettings.arabicLineHeight),
+    translationSize: normalizeNumber(merged.translationSize, defaultSettings.translationSize),
+    translationLineHeight: normalizeNumber(merged.translationLineHeight, defaultSettings.translationLineHeight),
+    showTranslation: typeof merged.showTranslation === 'boolean' ? merged.showTranslation : defaultSettings.showTranslation,
+    showAyahBadges: typeof merged.showAyahBadges === 'boolean' ? merged.showAyahBadges : defaultSettings.showAyahBadges,
+    wordByWord: typeof merged.wordByWord === 'boolean' ? merged.wordByWord : defaultSettings.wordByWord,
+    tajweedMode: typeof merged.tajweedMode === 'boolean' ? merged.tajweedMode : defaultSettings.tajweedMode,
+    customAccent: typeof merged.customAccent === 'string' ? merged.customAccent : defaultSettings.customAccent,
+  };
 };
 
 
@@ -251,13 +300,8 @@ function SettingsProvider({ children }) {
   const [settings, setSettings] = useState(() => {
     try {
       const saved = localStorage.getItem('appSettings');
-      const merged = saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
-      const validIds = [84, 85, 57, 234, 161, 80, 39, 33, 78, 208, 136, 140];
-      if (!validIds.includes(merged.translationId)) merged.translationId = 84;
-      const validThemes = ['dark-navy', 'light'];
-      if (!validThemes.includes(merged.theme)) merged.theme = 'dark-navy';
-      merged.customAccent = '';
-      return merged;
+      const parsed = saved ? JSON.parse(saved) : null;
+      return normalizeSettings(parsed);
     } catch {
       return defaultSettings;
     }
