@@ -22,6 +22,7 @@ const QF_CLIENT_ID = process.env.QF_CLIENT_ID;
 const QF_CLIENT_SECRET = process.env.QF_CLIENT_SECRET;
 const QF_AUTH_URL = process.env.QF_AUTH_URL || 'https://auth.quran.foundation';
 const QF_API_BASE = process.env.QF_API_BASE || 'https://apis.quran.foundation';
+const QF_ACCESS_TOKEN = process.env.QF_ACCESS_TOKEN;
 const PORT = process.env.PORT || 3001;
 
 // OAuth2 token cache
@@ -35,6 +36,11 @@ let tokenCache = {
 // ============================================================
 const getAccessToken = async () => {
   try {
+    // Optional manual token override (useful for explicit testing with a provided token).
+    if (QF_ACCESS_TOKEN && String(QF_ACCESS_TOKEN).trim()) {
+      return String(QF_ACCESS_TOKEN).trim();
+    }
+
     // Check if we have a cached token that's still valid
     if (tokenCache.access_token && tokenCache.expires_at > Date.now()) {
       console.log('✓ Using cached access token');
@@ -85,8 +91,15 @@ const getAccessToken = async () => {
 const quranApiRequest = async (endpoint) => {
   try {
     const accessToken = await getAccessToken();
+    
+    // Remove trailing slash from QF_API_BASE and ensure endpoint starts with /
+    const baseUrl = QF_API_BASE.replace(/\/$/, '');
+    const path = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
+    const fullUrl = `${baseUrl}/content/api/v4${path}`;
+    
+    console.log(`  → Calling: ${fullUrl}`);
 
-    const response = await fetch(`${QF_API_BASE}/content/api/v4${endpoint}`, {
+    const response = await fetch(fullUrl, {
       headers: {
         'x-auth-token': accessToken,
         'x-client-id': QF_CLIENT_ID,
@@ -94,6 +107,9 @@ const quranApiRequest = async (endpoint) => {
     });
 
     if (!response.ok) {
+      const errorBody = await response.text();
+      console.log(`  ✗ Response ${response.status}: ${errorBody.substring(0, 200)}`);
+      
       // If 401, token might be invalid - clear cache and retry once
       if (response.status === 401) {
         console.log('⚠ Access token rejected, clearing cache...');
@@ -101,7 +117,7 @@ const quranApiRequest = async (endpoint) => {
         
         // Retry with fresh token
         const freshToken = await getAccessToken();
-        const retryResponse = await fetch(`${QF_API_BASE}/content/api/v4${endpoint}`, {
+        const retryResponse = await fetch(fullUrl, {
           headers: {
             'x-auth-token': freshToken,
             'x-client-id': QF_CLIENT_ID,
@@ -129,7 +145,7 @@ const quranApiRequest = async (endpoint) => {
 };
 
 // ============================================================
-// FETCH ALL VERSES - Paginates through DC API (Arabic text only)
+// FETCH ALL VERSES - Paginates through DEENCORE API (Arabic text only)
 // ============================================================
 const fetchVerses = async (chapterId) => {
   const allVerses = [];
@@ -144,7 +160,7 @@ const fetchVerses = async (chapterId) => {
 
     if (!data.verses) {
       if (page === 1) {
-        console.log(`  ⚠ DC API: chapter ${chapterId} not available in this tier`);
+        console.log(`  ⚠ DEENCORE API: chapter ${chapterId} not available in this tier`);
       }
       break;
     }
@@ -161,7 +177,7 @@ const fetchVerses = async (chapterId) => {
 };
 
 // ============================================================
-// FETCH ALL TRANSLATIONS - Paginates through DC translation API
+// FETCH ALL TRANSLATIONS - Paginates through DEENCORE translation API
 // ============================================================
 const fetchTranslations = async (chapterId, resourceId) => {
   const allTranslations = [];
@@ -210,9 +226,99 @@ const mergeVersesAndTranslations = (verses, translations, chapterId) => {
   }));
 };
 
+// Merge verses + translations for grouped scopes (juz/hizb) using verse_key when possible.
+const mergeScopedVersesAndTranslations = (verses, translations) => {
+  const transByKey = new Map();
+  const transByComposite = new Map();
+
+  for (const t of translations) {
+    if (!t || !t.text) continue;
+    if (t.verse_key) {
+      transByKey.set(String(t.verse_key), t.text);
+    }
+    const tChapter = t.chapter_id || t.chapter_number || (t.verse_key ? parseInt(String(t.verse_key).split(':')[0], 10) : null);
+    const tVerse = t.verse_number_in_surah || t.verse_number || (t.verse_key ? parseInt(String(t.verse_key).split(':')[1], 10) : null);
+    if (tChapter && tVerse) {
+      transByComposite.set(`${tChapter}:${tVerse}`, t.text);
+    }
+  }
+
+  return verses.map((verse, idx) => {
+    const verseKey = String(verse.verse_key || '');
+    const chapter = verse.chapter_id || verse.chapter_number || (verseKey ? parseInt(verseKey.split(':')[0], 10) : null);
+    const verseInSurah =
+      verse.verse_number_in_surah ||
+      (verseKey ? parseInt(verseKey.split(':')[1], 10) : null) ||
+      verse.verse_number ||
+      idx + 1;
+
+    const translation = transByKey.get(verseKey) || transByComposite.get(`${chapter}:${verseInSurah}`) || 'Translation not available';
+
+    return {
+      id: verse.id,
+      verse_number: verse.verse_number || idx + 1,
+      verse_number_in_surah: verseInSurah,
+      verse_key: verseKey || (chapter ? `${chapter}:${verseInSurah}` : `${idx + 1}`),
+      chapter_number: chapter,
+      chapter_id: chapter,
+      text_uthmani: verse.text_uthmani || '',
+      text_imlaei: verse.text_imlaei || '',
+      translation_text: translation,
+    };
+  });
+};
+
+const fetchScopedVerses = async (scope, number) => {
+  const allVerses = [];
+  let page = 1;
+  const perPage = 50;
+
+  while (true) {
+    const endpoint = `/verses/by_${scope}/${number}?language=en&fields=text_uthmani,verse_key,verse_number,chapter_id&per_page=${perPage}&page=${page}`;
+    const data = await cachedApiRequest(endpoint);
+    if (!data.verses || data.verses.length === 0) break;
+    allVerses.push(...data.verses);
+    if (!data.pagination?.next_page || data.verses.length < perPage) break;
+    page += 1;
+  }
+
+  return allVerses;
+};
+
+const fetchScopedTranslations = async (scope, number, translationId) => {
+  const allTranslations = [];
+  let page = 1;
+  const perPage = 50;
+
+  while (true) {
+    const endpoint = `/translations/${translationId}/by_${scope}/${number}?fields=verse_key,verse_number,chapter_id&per_page=${perPage}&page=${page}`;
+    const data = await cachedApiRequest(endpoint);
+    if (!data.translations || data.translations.length === 0) break;
+    allTranslations.push(...data.translations);
+    if (!data.pagination?.next_page || data.translations.length < perPage) break;
+    page += 1;
+  }
+
+  return allTranslations;
+};
+
+const fetchJuzDetail = async (juzNumber) => {
+  return cachedApiRequest(`/juzs/${juzNumber}?mushaf=1`);
+};
+
+const fetchHizbDetail = async (hizbNumber) => {
+  return cachedApiRequest(`/hizbs/${hizbNumber}`);
+};
+
 // ============================================================
 // CREDENTIALS CHECK MIDDLEWARE
 // ============================================================
+const isCredentialsPlaceholder = () => {
+  const placeholders = ['your_client_id_here', 'your_client_secret_here', undefined, null, ''];
+  return placeholders.includes(QF_CLIENT_ID?.toLowerCase()) || 
+         placeholders.includes(QF_CLIENT_SECRET?.toLowerCase());
+};
+
 const checkCredentials = (req, res, next) => {
   if (!QF_CLIENT_ID || !QF_CLIENT_SECRET) {
     return res.status(500).json({
@@ -220,6 +326,22 @@ const checkCredentials = (req, res, next) => {
       message: 'DEENCORE credentials are not configured in server/.env',
       details: 'Please add QF_CLIENT_ID and QF_CLIENT_SECRET to server/.env file',
       status: 'MISSING_CREDENTIALS'
+    });
+  }
+  
+  if (isCredentialsPlaceholder()) {
+    return res.status(503).json({
+      error: 'Credentials not configured',
+      message: 'DEENCORE API credentials are not set up yet',
+      details: 'Please replace placeholder values in server/.env with real credentials from https://api-docs.quran.foundation/request-access',
+      nextSteps: [
+        '1. Visit https://api-docs.quran.foundation/request-access',
+        '2. Fill out the form and wait for approval (24-48 hours)',
+        '3. Copy your QF_CLIENT_ID and QF_CLIENT_SECRET from the email',
+        '4. Edit server/.env and replace the placeholder values',
+        '5. Restart the backend server (Ctrl+C, then npm run server)'
+      ],
+      status: 'DEMO_MODE'
     });
   }
   next();
@@ -415,6 +537,113 @@ app.get('/api/chapters', checkCredentials, async (req, res) => {
       message: err.message,
       status: 'ERROR'
     });
+  }
+});
+
+app.get('/api/juzs', checkCredentials, async (req, res) => {
+  try {
+    // Build list from explicit Get Juz endpoint for all 30 juzs.
+    const juzs = await Promise.all(
+      Array.from({ length: 30 }, (_, idx) => fetchJuzDetail(idx + 1).then(d => d?.juz || d).catch(() => null))
+    );
+    res.json({ juzs: juzs.filter(Boolean) });
+  } catch (err) {
+    console.error('Error in /api/juzs:', err.message);
+    res.status(500).json({ error: 'Failed to fetch juzs', message: err.message, status: 'API_ERROR' });
+  }
+});
+
+app.get('/api/hizbs', checkCredentials, async (req, res) => {
+  try {
+    const data = await cachedApiRequest('/hizbs');
+    res.json({ hizbs: data?.hizbs || [] });
+  } catch (err) {
+    console.error('Error in /api/hizbs:', err.message);
+    res.status(500).json({ error: 'Failed to fetch hizbs', message: err.message, status: 'API_ERROR' });
+  }
+});
+
+app.get('/api/juzs/:juzNumber', checkCredentials, async (req, res) => {
+  try {
+    const juzNumber = parseInt(req.params.juzNumber, 10);
+    if (isNaN(juzNumber) || juzNumber < 1 || juzNumber > 30) {
+      return res.status(400).json({ error: 'Invalid juz number', status: 'INVALID_INPUT' });
+    }
+    const data = await fetchJuzDetail(juzNumber);
+    res.json({ juz: data?.juz || data });
+  } catch (err) {
+    console.error('Error in /api/juzs/:juzNumber:', err.message);
+    res.status(500).json({ error: 'Failed to fetch juz detail', message: err.message, status: 'API_ERROR' });
+  }
+});
+
+app.get('/api/hizbs/:hizbNumber', checkCredentials, async (req, res) => {
+  try {
+    const hizbNumber = parseInt(req.params.hizbNumber, 10);
+    if (isNaN(hizbNumber) || hizbNumber < 1 || hizbNumber > 60) {
+      return res.status(400).json({ error: 'Invalid hizb number', status: 'INVALID_INPUT' });
+    }
+    const data = await fetchHizbDetail(hizbNumber);
+    res.json({ hizb: data?.hizb || data });
+  } catch (err) {
+    console.error('Error in /api/hizbs/:hizbNumber:', err.message);
+    res.status(500).json({ error: 'Failed to fetch hizb detail', message: err.message, status: 'API_ERROR' });
+  }
+});
+
+app.get('/api/juzs/:juzNumber/verses/:translationId', checkCredentials, async (req, res) => {
+  try {
+    const juzNumber = parseInt(req.params.juzNumber, 10);
+    const translationId = parseInt(req.params.translationId, 10);
+    if (isNaN(juzNumber) || juzNumber < 1 || juzNumber > 30) {
+      return res.status(400).json({ error: 'Invalid juz number', status: 'INVALID_INPUT' });
+    }
+    if (isNaN(translationId)) {
+      return res.status(400).json({ error: 'Invalid translation ID', status: 'INVALID_INPUT' });
+    }
+
+    const [rawVerses, rawTranslations] = await Promise.all([
+      fetchScopedVerses('juz', juzNumber),
+      fetchScopedTranslations('juz', juzNumber, translationId),
+    ]);
+
+    if (!rawVerses.length) {
+      return res.status(404).json({ error: 'No verses available for this juz', status: 'NOT_AVAILABLE' });
+    }
+
+    const verses = mergeScopedVersesAndTranslations(rawVerses, rawTranslations);
+    res.json({ verses, juz_number: juzNumber });
+  } catch (err) {
+    console.error('Error in /api/juzs/:juzNumber/verses/:translationId:', err.message);
+    res.status(500).json({ error: 'Failed to fetch juz verses', message: err.message, status: 'API_ERROR' });
+  }
+});
+
+app.get('/api/hizbs/:hizbNumber/verses/:translationId', checkCredentials, async (req, res) => {
+  try {
+    const hizbNumber = parseInt(req.params.hizbNumber, 10);
+    const translationId = parseInt(req.params.translationId, 10);
+    if (isNaN(hizbNumber) || hizbNumber < 1 || hizbNumber > 60) {
+      return res.status(400).json({ error: 'Invalid hizb number', status: 'INVALID_INPUT' });
+    }
+    if (isNaN(translationId)) {
+      return res.status(400).json({ error: 'Invalid translation ID', status: 'INVALID_INPUT' });
+    }
+
+    const [rawVerses, rawTranslations] = await Promise.all([
+      fetchScopedVerses('hizb', hizbNumber),
+      fetchScopedTranslations('hizb', hizbNumber, translationId),
+    ]);
+
+    if (!rawVerses.length) {
+      return res.status(404).json({ error: 'No verses available for this hizb', status: 'NOT_AVAILABLE' });
+    }
+
+    const verses = mergeScopedVersesAndTranslations(rawVerses, rawTranslations);
+    res.json({ verses, hizb_number: hizbNumber });
+  } catch (err) {
+    console.error('Error in /api/hizbs/:hizbNumber/verses/:translationId:', err.message);
+    res.status(500).json({ error: 'Failed to fetch hizb verses', message: err.message, status: 'API_ERROR' });
   }
 });
 

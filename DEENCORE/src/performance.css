@@ -1,0 +1,274 @@
+/**
+ * Performance Enhancement CSS
+ * GPU-accelerated animations and smooth 60+ FPS rendering
+ * Import this before App.css to ensure proper cascade
+ */
+
+/* ==================== GPU ACCELERATION LAYER ==================== */
+
+/* Force GPU acceleration on all animated elements */
+.app,
+.content,
+.nav,
+.app-chrome,
+button,
+a,
+.home-card,
+.surah-item,
+.ayah-card,
+.theme-option,
+.modal,
+.settings-panel {
+  -webkit-font-smoothing: antialiased;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-perspective: 1000;
+  perspective: 1000;
+}
+
+/* ==================== OPTIMIZED ANIMATIONS ==================== */
+
+@keyframes fadeInScaleGPU {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale3d(0.98, 0.98, 1);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+  }
+}
+
+@keyframes slideUpFadeGPU {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes pageRevealGPU {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes pageSlideInGPU {
+  from {
+    opacity: 0;
+    transform: translate3d(48px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* High-performance rotation animation */
+@keyframes spin60fps {
+  from {
+    transform: rotate3d(0, 0, 1, 0deg);
+  }
+  to {
+    transform: rotate3d(0, 0, 1, 360deg);
+  }
+}
+
+/* ==================== SMOOTH SCROLL OPTIMIZATION ==================== */
+
+html {
+  scroll-behavior: auto; /* Disable CSS scroll-behavior, use JS RAF instead */
+  overflow-y: scroll; /* Always show scrollbar to prevent layout shift */
+}
+
+body {
+  scroll-behavior: auto;
+}
+
+/* Optimize scrollable containers */
+.scrollable-container,
+.modal-content,
+[data-scrollable] {
+  -webkit-overflow-scrolling: touch; /* Momentum scrolling on iOS */
+  will-change: auto;
+  contain: layout style paint;
+}
+
+/* ==================== BUTTON & INTERACTION OPTIMIZATION ==================== */
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:active,
+a:active {
+  transform: translate3d(0, 1px, 0);
+  transition: transform 0.1s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+/* High-performance hover state */
+@media (hover: hover) {
+  button:hover,
+  a:hover {
+    will-change: opacity, transform;
+  }
+}
+
+/* ==================== CONTAIN & PERFORMANCE HINTS ==================== */
+
+/* Use CSS containment for isolated components */
+.home-card,
+.surah-item,
+.ayah-card,
+.modal,
+.settings-panel {
+  contain: layout style paint;
+}
+
+/* Optimize text rendering */
+p, span, div {
+  text-rendering: geometricPrecision;
+}
+
+/* ==================== Z-INDEX STACKING CONTEXT ==================== */
+
+.modal {
+  will-change: opacity, transform;
+  contain: paint;
+}
+
+/* ==================== PREFERS REDUCED MOTION ==================== */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==================== HIGH REFRESH RATE DEVICES ==================== */
+
+@media (min-width: 1024px) {
+  /* Longer animations for smoother feel on 120+ FPS displays */
+  .smooth-anim {
+    animation-duration: 0.5s;
+  }
+}
+
+/* ==================== SAFE WILL-CHANGE USAGE ==================== */
+
+/* Only apply will-change to elements that actually animate */
+.animated-button {
+  will-change: opacity, transform;
+}
+
+.animated-card {
+  will-change: opacity, transform;
+}
+
+.animated-scroll {
+  will-change: scroll-position;
+}
+
+/* Remove will-change after animation */
+.animated-done {
+  will-change: auto;
+}
+
+/* ==================== TRANSFORM OPTIMIZATION ==================== */
+
+/* Use transform instead of position/margin for animations */
+.slide-in {
+  transform: translateX(0);
+}
+
+.fade-in {
+  opacity: 1;
+  transform: scale3d(1, 1, 1);
+}
+
+/* ==================== CUSTOM EASING FOR 60 FPS ==================== */
+
+/* Spring-like easing (feels smooth on all refresh rates) */
+:root {
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-smooth: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-quart: cubic-bezier(0.165, 0.84, 0.44, 1);
+  --ease-out-cubic: cubic-bezier(0.215, 0.61, 0.355, 1);
+  --ease-out-quad: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* ==================== EFFICIENT SHADOWS ==================== */
+
+/* Use transform instead of box-shadow for performance */
+.shadow-card {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.shadow-hover {
+  box-shadow: 0 16px 48px rgba(47, 143, 255, 0.15);
+}
+
+/* ==================== LAYOUT OPTIMIZATION ==================== */
+
+/* Use flexbox for efficient layout */
+.flex-container {
+  display: flex;
+  flex-direction: column;
+  will-change: contents;
+}
+
+/* Avoid expensive position: fixed when possible */
+.sticky-element {
+  position: sticky;
+  will-change: auto;
+}
+
+/* ==================== IMAGE & BACKGROUND OPTIMIZATION ==================== */
+
+img,
+[style*="background-image"] {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 200px;
+}
+
+/* SVG optimization */
+svg {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* ==================== PSEUDO-ELEMENT OPTIMIZATION ==================== */
+
+/* Prevent painting pseudo-elements unnecessarily */
+::before,
+::after {
+  will-change: auto;
+}
+
+/* ==================== MEMORY EFFICIENT COLORS ==================== */
+
+/* Use CSS variables for colors (better cache efficiency) */
+:root {
+  --perf-color-accent: #2f8fff;
+  --perf-color-bg: #020409;
+  --perf-color-text: #ffffff;
+}
+

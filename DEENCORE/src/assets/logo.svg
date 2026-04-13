@@ -1,117 +1,66 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 72" fill="none" role="img" aria-label="DeenCore logo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" fill="none" role="img" aria-label="DeenCore logo">
   <title>DeenCore</title>
   <defs>
-    <!-- Crescent mask: white = show, black = hide -->
-    <mask id="cres-mask">
-      <rect width="300" height="72" fill="white"/>
-      <circle cx="46" cy="28" r="20" fill="black"/>
-    </mask>
-
-    <!-- Icon background gradient -->
-    <radialGradient id="icon-bg" cx="38%" cy="36%" r="64%" gradientUnits="userSpaceOnUse"
-                    fx="28" fy="25" x1="0" y1="0" x2="72" y2="72">
-      <stop offset="0%" stop-color="#163564"/>
-      <stop offset="100%" stop-color="#071624"/>
+    <linearGradient id="dcw-bg" x1="10" y1="8" x2="62" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#133F78"/>
+      <stop offset="0.55" stop-color="#0A2448"/>
+      <stop offset="1" stop-color="#071626"/>
+    </linearGradient>
+    <radialGradient id="dcw-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(24 20) rotate(40) scale(34)">
+      <stop offset="0" stop-color="#6BC0FF" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#6BC0FF" stop-opacity="0"/>
     </radialGradient>
-
-    <!-- Soft glow for the star -->
-    <filter id="star-glow" color-interpolation-filters="sRGB"
-            x="-70%" y="-70%" width="240%" height="240%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="1.6" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-
-    <!-- Soft glow for crescent -->
-    <filter id="cres-glow" color-interpolation-filters="sRGB"
-            x="-25%" y="-25%" width="150%" height="150%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-
-    <!-- Outer ring glow -->
-    <filter id="ring-glow" color-interpolation-filters="sRGB"
-            x="-5%" y="-5%" width="110%" height="110%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
+    <linearGradient id="dcw-crescent" x1="25" y1="27" x2="40" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F8DE9A"/>
+      <stop offset="1" stop-color="#D4A853"/>
+    </linearGradient>
+    <mask id="dcw-crescent-cut">
+      <rect width="80" height="80" fill="white"/>
+      <circle cx="40" cy="34" r="14" fill="black"/>
+    </mask>
   </defs>
 
-  <!-- ══════════════ ICON MARK ══════════════ -->
+  <g transform="translate(0 4)">
+    <rect x="4" y="4" width="64" height="64" rx="18" fill="url(#dcw-bg)"/>
+    <rect x="4.75" y="4.75" width="62.5" height="62.5" rx="17.25" stroke="#56A6D9" stroke-opacity="0.5" stroke-width="1.5"/>
+    <circle cx="36" cy="36" r="27" stroke="#5D9D94" stroke-opacity="0.28" stroke-width="1"/>
+    <circle cx="36" cy="36" r="27" fill="url(#dcw-glow)"/>
+    <circle cx="33" cy="38" r="15" fill="url(#dcw-crescent)" mask="url(#dcw-crescent-cut)"/>
+    <path
+      d="M50 19.1L51.5 22.2L54.9 22.6L52.4 24.9L53.1 28.2L50 26.5L46.9 28.2L47.6 24.9L45.1 22.6L48.5 22.2L50 19.1Z"
+      fill="#F4D48A"
+    />
+    <path d="M20 51.5H52" stroke="#5D9D94" stroke-opacity="0.38" stroke-width="1.4" stroke-linecap="round"/>
+  </g>
 
-  <!-- Background circle -->
-  <circle cx="36" cy="36" r="34" fill="url(#icon-bg)"/>
-
-  <!-- Outer teal ring -->
-  <circle cx="36" cy="36" r="34" stroke="#5d9d94" stroke-width="1.4"
-          opacity="0.65" filter="url(#ring-glow)"/>
-
-  <!-- Inner dashed decorative ring -->
-  <circle cx="36" cy="36" r="27.5" stroke="#5d9d94" stroke-width="0.45"
-          opacity="0.2" stroke-dasharray="2.5 5.5"/>
-
-  <!-- Crescent moon (gold, glowing) -->
-  <circle cx="33" cy="40" r="20" fill="#d4a853"
-          filter="url(#cres-glow)" mask="url(#cres-mask)"/>
-
-  <!-- Crescent edge highlight -->
-  <circle cx="33" cy="40" r="20" stroke="#f0cb76" stroke-width="0.6"
-          opacity="0.35" mask="url(#cres-mask)"/>
-
-  <!--
-    8-pointed star: center (56, 20), outer r=5.5, inner r=2.3
-    Computed via alternating outer/inner at 45° intervals from −90°.
-  -->
-  <path fill="#d4a853" filter="url(#star-glow)"
-    d="M56,14.5
-       L56.88,17.88 L59.89,16.11
-       L58.13,19.12 L61.5,20
-       L58.13,20.88 L59.89,23.89
-       L56.88,22.13 L56,25.5
-       L55.12,22.13 L52.11,23.89
-       L53.87,20.88 L50.5,20
-       L53.87,19.12 L52.11,16.11
-       L55.12,17.88 Z"/>
-
-  <!-- Bottom accent line inside icon -->
-  <line x1="12" y1="61" x2="60" y2="61"
-        stroke="#5d9d94" stroke-width="0.6" opacity="0.25"/>
-
-  <!-- ══════════════ WORDMARK ══════════════ -->
-
-  <!-- "Deen" — light weight, teal -->
   <text
-    x="84" y="50"
-    font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', system-ui, sans-serif"
-    font-size="36"
+    x="86"
+    y="46"
+    fill="#72C2B8"
+    font-family="'Sora', 'Segoe UI', Arial, sans-serif"
+    font-size="35"
     font-weight="300"
-    letter-spacing="-0.5"
-    fill="#5dada3">Deen</text>
+    letter-spacing="-0.8"
+  >Deen</text>
 
-  <!-- "Core" — bold, near-white -->
   <text
-    x="168" y="50"
-    font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', system-ui, sans-serif"
-    font-size="36"
+    x="170"
+    y="46"
+    fill="#EAF4FF"
+    font-family="'Sora', 'Segoe UI', Arial, sans-serif"
+    font-size="35"
     font-weight="700"
-    letter-spacing="-1"
-    fill="#e8eef5">Core</text>
+    letter-spacing="-1.1"
+  >Core</text>
 
-  <!-- Subtle tagline (hidden at small sizes, visible above ~200px wide) -->
   <text
-    x="84" y="64"
-    font-family="'Inter', 'Segoe UI', system-ui, sans-serif"
+    x="87"
+    y="62"
+    fill="#5D9D94"
+    font-family="'DM Sans', 'Segoe UI', Arial, sans-serif"
     font-size="9"
-    font-weight="400"
-    letter-spacing="2.5"
-    fill="#5d9d94"
-    opacity="0.55">QURAN · SALAH · REFLECT</text>
+    font-weight="600"
+    letter-spacing="2.2"
+    opacity="0.75"
+  >QURAN  SALAH  REFLECT</text>
 </svg>

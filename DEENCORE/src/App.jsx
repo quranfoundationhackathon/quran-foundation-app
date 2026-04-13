@@ -4,7 +4,7 @@ import "./App.css";
 import deenCoreIcon from "./assets/logo-icon.svg";
 
 // ─── API Base URL ──────────────────────────────────────────
-const API_BASE = 'http://localhost:3001';
+const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:3001`;
 
 // ═══════════════════════════════════════════════════════════
 // MOCK AUTH DATABASE (simulated — stored in localStorage)
@@ -240,22 +240,10 @@ const SOCIAL_COLORS = { google: '#EA4335', microsoft: '#00A4EF', apple: '#000', 
 
 const defaultSettings = {
   theme: 'dark-navy',
-  customAccent: '',
-  arabicSize: 2.1,
-  arabicLineHeight: 2.6,
-  translationSize: 1.05,
-  translationLineHeight: 1.7,
-  globalTextScale: 1.0,
-  showTranslation: true,
-  showAyahBadges: true,
-  viewMode: 'card',
-  spacing: 'normal',
-  layoutMode: 'normal',
-  scriptStyle: 'indopak',
-  translationId: 84,
-  wordByWord: false,
-  tajweedMode: false,
+  scriptStyle: 'uthmani',
+  // ... other settings
 };
+
 
 const SettingsContext = createContext();
 
@@ -266,6 +254,9 @@ function SettingsProvider({ children }) {
       const merged = saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
       const validIds = [84, 85, 57, 234, 161, 80, 39, 33, 78, 208, 136, 140];
       if (!validIds.includes(merged.translationId)) merged.translationId = 84;
+      const validThemes = ['dark-navy', 'light'];
+      if (!validThemes.includes(merged.theme)) merged.theme = 'dark-navy';
+      merged.customAccent = '';
       return merged;
     } catch {
       return defaultSettings;
@@ -285,9 +276,9 @@ function SettingsProvider({ children }) {
 
   useEffect(() => {
     try {
-      const migrationKey = 'scriptDefaultMigrated_indopak';
+      const migrationKey = 'scriptDefaultMigrated_uthmani';
       if (localStorage.getItem(migrationKey)) return;
-      setSettings(prev => prev.scriptStyle === 'uthmani' ? { ...prev, scriptStyle: 'indopak' } : prev);
+      setSettings(prev => prev.scriptStyle === 'indopak' ? { ...prev, scriptStyle: 'uthmani' } : prev);
       localStorage.setItem(migrationKey, '1');
     } catch {}
   }, []);
@@ -338,6 +329,20 @@ const IconClock = () => (
 const IconMoon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" />
+  </svg>
+);
+
+const IconSun = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2" />
+    <path d="M12 20v2" />
+    <path d="M4.93 4.93l1.41 1.41" />
+    <path d="M17.66 17.66l1.41 1.41" />
+    <path d="M2 12h2" />
+    <path d="M20 12h2" />
+    <path d="M4.93 19.07l1.41-1.41" />
+    <path d="M17.66 6.34l1.41-1.41" />
   </svg>
 );
 
@@ -818,7 +823,6 @@ const DAILY_REFLECTIONS = [
 function SettingsPanel() {
   const { settings, updateSetting, resetSection, setShowSettings } = useSettings();
   const [availableTranslations, setAvailableTranslations] = useState([]);
-  const [hexDraft, setHexDraft] = useState('');
 
   useEffect(() => {
     fetch(`${API_BASE}/api/translations`)
@@ -827,16 +831,6 @@ function SettingsPanel() {
       .catch(() => {});
   }, []);
 
-  const themes = [
-    { value: 'dark-navy', label: 'Dark Navy' },
-    { value: 'light', label: 'Light' },
-    { value: 'sepia', label: 'Sepia' },
-    { value: 'mushaf-green', label: 'Mushaf Green' },
-    { value: 'deep-dark', label: 'Deep Dark' },
-    { value: 'maroon', label: 'Maroon Night' },
-    { value: 'cool-slate', label: 'Cool Slate' },
-  ];
-
   return (
     <div className="settings-overlay" onClick={() => setShowSettings(false)}>
       <div className="settings-panel" onClick={e => e.stopPropagation()}>
@@ -844,76 +838,7 @@ function SettingsPanel() {
           <h3>Settings</h3>
           <button className="settings-close" onClick={() => setShowSettings(false)}>&#215;</button>
         </div>
-
         <div className="settings-content">
-          {/* Theme */}
-          <div className="settings-section">
-            <h4 className="settings-section-title">Theme</h4>
-            <div className="settings-options">
-              {themes.map(t => (
-                <button
-                  key={t.value}
-                  className={`theme-option ${settings.theme === t.value && !settings.customAccent ? 'active' : ''} theme-${t.value}`}
-                  onClick={() => { updateSetting('customAccent', ''); updateSetting('theme', t.value); }}
-                  title={t.label}
-                />
-              ))}
-            </div>
-            <div className="custom-theme-section">
-              <h4 className="settings-section-subtitle">Custom Theme</h4>
-              <div className="custom-color-grid">
-                {[
-                  '#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c','#3498db',
-                  '#9b59b6','#e91e63','#00bcd4','#8bc34a','#ff9800','#795548',
-                  '#607d8b','#c0392b','#d4a853','#2c3e50','#16a085','#2980b9',
-                ].map(c => (
-                  <button key={c}
-                    className={`custom-color-swatch ${settings.customAccent === c ? 'active' : ''}`}
-                    style={{ background: c }}
-                    onClick={() => { updateSetting('customAccent', c); setHexDraft(c.replace('#', '')); }}
-                    title={c}
-                  />
-                ))}
-              </div>
-              <div className="custom-hex-row">
-                <span className="hex-label">#</span>
-                <input
-                  type="text"
-                  className="hex-input"
-                  maxLength={6}
-                  placeholder="HEX"
-                  value={hexDraft}
-                  onChange={e => {
-                    const v = e.target.value.replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
-                    setHexDraft(v);
-                    if (v.length === 6) updateSetting('customAccent', '#' + v);
-                  }}
-                  onFocus={() => {
-                    // Pre-fill with current accent so user can edit it
-                    setHexDraft((settings.customAccent || '').replace('#', ''));
-                  }}
-                  onBlur={e => {
-                    const v = e.target.value.replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
-                    if (v.length === 6) {
-                      updateSetting('customAccent', '#' + v);
-                    }
-                    // Reset draft to applied value (or empty) so it stays in sync
-                    setHexDraft((settings.customAccent || '').replace('#', ''));
-                  }}
-                />
-                {settings.customAccent && (
-                  <div className="custom-preview" style={{ background: settings.customAccent }} />
-                )}
-                {settings.customAccent && (
-                  <button className="accent-reset-btn" onClick={() => { updateSetting('customAccent', ''); setHexDraft(''); }}>
-                    Reset
-                  </button>
-                )}
-              </div>
-            </div>
-            <button className="section-reset-btn" onClick={() => resetSection(['theme', 'customAccent'])}>↺ Reset Theme</button>
-          </div>
-
           {/* Typography */}
           <div className="settings-section">
             <h4 className="settings-section-title">Typography</h4>
@@ -1028,33 +953,6 @@ function SettingsPanel() {
             <button className="section-reset-btn" onClick={() => resetSection(['showTranslation','showAyahBadges','wordByWord','tajweedMode','viewMode','translationId'])}>↺ Reset Reader</button>
           </div>
 
-          {/* Layout */}
-          <div className="settings-section">
-            <h4 className="settings-section-title">Layout</h4>
-
-            <div className="settings-control">
-              <label>Reader Width</label>
-              <div className="button-group">
-                <button className={`btn-option ${settings.layoutMode === 'normal' ? 'active' : ''}`}
-                  onClick={() => updateSetting('layoutMode', 'normal')}>Normal</button>
-                <button className={`btn-option ${settings.layoutMode === 'wide' ? 'active' : ''}`}
-                  onClick={() => updateSetting('layoutMode', 'wide')}>Wide</button>
-              </div>
-            </div>
-
-            <div className="settings-control">
-              <label>Spacing</label>
-              <div className="button-group">
-                {['compact', 'normal', 'spacious', 'very-spacious'].map(s => (
-                  <button key={s} className={`btn-option ${settings.spacing === s ? 'active' : ''}`}
-                    onClick={() => updateSetting('spacing', s)}>
-                    {s === 'very-spacious' ? 'XL' : s.charAt(0).toUpperCase() + s.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <button className="section-reset-btn" onClick={() => resetSection(['layoutMode','spacing'])}>↺ Reset Layout</button>
-          </div>
         </div>
       </div>
     </div>
@@ -1191,9 +1089,9 @@ function Home({ onNavigate }) {
       <div className="home-geo-pattern" />
 
       {/* Hero */}
-      <div className="home-hero">
+      <div className="home-hero home-grid-hero">
         <div className="home-bismillah">{'\uFDFD'}</div>
-        <h1 className="home-title" style={{ fontSize: `${2 * scale}rem` }}>As-Salamu Alaykum</h1>
+        <h1 className="home-title" style={{ fontSize: `${2.5 * scale}rem` }}>As-Salamu Alaykum</h1>
         <p className="home-greeting">{greeting}</p>
         <div className="home-date-row">
           {hijriDate && <p className="home-hijri">{hijriDate}</p>}
@@ -1202,8 +1100,8 @@ function Home({ onNavigate }) {
         </div>
       </div>
 
-      {/* Verse of the Day */}
-      <div className="home-verse-card" onClick={() => onNavigate?.('quran')}>
+      {/* Verse of the Day - Full Width Hero Card */}
+      <div className="home-verse-card home-grid-verse" onClick={() => onNavigate?.('quran')}>
         <div className="home-verse-label">Verse of the Day</div>
         <p className={`home-verse-arabic ${scriptClass}`}>
           {todayVerse.arabic}
@@ -1219,26 +1117,32 @@ function Home({ onNavigate }) {
         </div>
       </div>
 
-      {/* Next Prayer Preview */}
-      {nextPrayerPreview && (
-        <div className="home-section-card" onClick={() => onNavigate?.('salah')}>
-          <div className="home-section-header">
-            <span className="home-section-icon"><IconPrayer /></span>
-            <h4 className="home-section-title">Next Prayer</h4>
-          </div>
-          <div className="home-continue-info">
-            <div className="home-continue-text">
-              <h4>{nextPrayerPreview.name}</h4>
-              <p>{nextPrayerPreview.timeStr}</p>
-            </div>
-            <span className="home-continue-arrow"><IconChevron /></span>
+      {/* Quick Stats Sidebar */}
+      <div className="home-section-card home-quick-stats">
+        <div className="home-stats-title">Today's Progress</div>
+        <div className="home-stats-item">
+          <span className="home-stats-label">Reading Time</span>
+          <span className="home-stats-value">0 min</span>
+        </div>
+        <div className="home-stats-item">
+          <span className="home-stats-label">Verses Read</span>
+          <span className="home-stats-value">0</span>
+        </div>
+        <div className="home-stats-item">
+          <span className="home-stats-label">Streak</span>
+          <span className="home-stats-value">0 days</span>
+        </div>
+        <div className="home-stats-item">
+          <span className="home-stats-label">Daily Goal</span>
+          <div className="home-stats-progress">
+            <div className="home-stats-bar" style={{width: '0%'}}></div>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Continue Reading */}
+      {/* Continue Reading & Next Prayer - Side by Side */}
       {lastRead && (
-        <div className="home-section-card" onClick={() => onNavigate?.('quran')}>
+        <div className="home-section-card home-continue-reading" onClick={() => onNavigate?.('quran')}>
           <div className="home-section-header">
             <span className="home-section-icon"><IconPlay /></span>
             <h4 className="home-section-title">Continue Reading</h4>
@@ -1253,8 +1157,25 @@ function Home({ onNavigate }) {
         </div>
       )}
 
+      {nextPrayerPreview && (
+        <div className="home-section-card home-grid-section" onClick={() => onNavigate?.('salah')}>
+          <div className="home-section-header">
+            <span className="home-section-icon"><IconPrayer /></span>
+            <h4 className="home-section-title">Next Prayer</h4>
+          </div>
+          <div className="home-continue-info">
+            <div className="home-continue-text">
+              <h4>{nextPrayerPreview.name}</h4>
+              <p>{nextPrayerPreview.timeStr}</p>
+            </div>
+            <span className="home-continue-arrow"><IconChevron /></span>
+          </div>
+        </div>
+      )}
+
+      {/* Recent Surahs */}
       {recentSurahs.length > 0 && (
-        <div className="home-section-card">
+        <div className="home-section-card home-recent-surahs">
           <div className="home-section-header">
             <span className="home-section-icon"><IconBookmark /></span>
             <h4 className="home-section-title">Recent Surahs</h4>
@@ -1274,8 +1195,8 @@ function Home({ onNavigate }) {
         </div>
       )}
 
-      {/* Quick Access */}
-      <div className="home-grid">
+      {/* Quick Access - 4 Column Grid */}
+      <div className="home-quick-access">
         <button className="home-card" onClick={() => onNavigate?.('quran')}>
           <span className="home-card-icon"><IconBook /></span>
           <span className="home-card-label">Read Quran</span>
@@ -1298,8 +1219,8 @@ function Home({ onNavigate }) {
         </button>
       </div>
 
-      {/* Reading Stats */}
-      <div className="home-reading-stats">
+      {/* Reading Stats - Full Width */}
+      <div className="home-reading-stats home-grid-stats">
         <div className="home-stat">
           <span className="home-stat-icon"><IconTimer /></span>
           <span className="home-stat-value">{todayTimeDisplay}</span>
@@ -1313,26 +1234,8 @@ function Home({ onNavigate }) {
         </div>
       </div>
 
-      {/* Random Ayah */}
-      <div className="home-section-card">
-        <div className="home-section-header">
-          <span className="home-section-icon"><IconDice /></span>
-          <h4 className="home-section-title">Random Ayah</h4>
-          <button className="home-random-btn" onClick={fetchRandomAyah} disabled={loadingRandom}>
-            {loadingRandom ? <span className="auth-spinner-sm" /> : 'Surprise me ✨'}
-          </button>
-        </div>
-        {randomAyah && (
-          <div className="home-random-ayah" onClick={() => onNavigate?.('quran', randomAyah.surahNum)}>
-            <p className={`home-random-arabic ${scriptClass}`}>{randomAyah.arabic}</p>
-            <p className="home-random-trans">&ldquo;{randomAyah.translation}&rdquo;</p>
-            <p className="home-random-ref">{randomAyah.ref}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Daily Goal */}
-      <div className="home-section-card">
+      {/* Daily Goal - Full Width */}
+      <div className="home-section-card home-grid-goal">
         <div className="home-section-header">
           <span className="home-section-icon"><IconTarget /></span>
           <h4 className="home-section-title">Daily Goal - Level {dailyGoal.levelIndex + 1}</h4>
@@ -1357,23 +1260,42 @@ function Home({ onNavigate }) {
         </div>
       </div>
 
-      {/* Reflection */}
-      <div className="home-section-card" onClick={() => onNavigate?.('explore')}>
-        <div className="home-section-header">
-          <span className="home-section-icon"><IconStar /></span>
-          <h4 className="home-section-title">Daily Reflection</h4>
-        </div>
-        <div className="home-continue-info">
-          <div className="home-continue-text">
-            <h4>{todayReflection.title}</h4>
-            <p>{todayReflection.desc}</p>
+      {/* Random Ayah & Daily Reflection - Side by Side */}
+      <div className="home-random-reflection-row">
+        <div className="home-section-card">
+          <div className="home-section-header">
+            <span className="home-section-icon"><IconDice /></span>
+            <h4 className="home-section-title">Random Ayah</h4>
+            <button className="home-random-btn" onClick={fetchRandomAyah} disabled={loadingRandom}>
+              {loadingRandom ? <span className="auth-spinner-sm" /> : 'Surprise me ✨'}
+            </button>
           </div>
-          <span className="home-continue-arrow"><IconChevron /></span>
+          {randomAyah && (
+            <div className="home-random-ayah" onClick={() => onNavigate?.('quran', randomAyah.surahNum)}>
+              <p className={`home-random-arabic ${scriptClass}`}>{randomAyah.arabic}</p>
+              <p className="home-random-trans">&ldquo;{randomAyah.translation}&rdquo;</p>
+              <p className="home-random-ref">{randomAyah.ref}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="home-section-card" onClick={() => onNavigate?.('explore')}>
+          <div className="home-section-header">
+            <span className="home-section-icon"><IconStar /></span>
+            <h4 className="home-section-title">Daily Reflection</h4>
+          </div>
+          <div className="home-continue-info">
+            <div className="home-continue-text">
+              <h4>{todayReflection.title}</h4>
+              <p>{todayReflection.desc}</p>
+            </div>
+            <span className="home-continue-arrow"><IconChevron /></span>
+          </div>
         </div>
       </div>
 
-      {/* Hadith */}
-      <div className="home-hadith">
+      {/* Hadith - Full Width */}
+      <div className="home-hadith home-grid-verse">
         <div className="home-hadith-deco">&ldquo;</div>
         <p className="home-hadith-text">
           {todayHadith.text}
@@ -1544,9 +1466,7 @@ function ReciterPicker({ reciters, selected, onChange }) {
   const [search, setSearch] = useState('');
   const [styleFilter, setStyleFilter] = useState('All');
   const ref = useRef(null);
-  const btnRef = useRef(null);
   const searchRef = useRef(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
   const current = reciters.find(r => r.id === selected) || reciters[0];
 
   useEffect(() => {
@@ -1561,10 +1481,6 @@ function ReciterPicker({ reciters, selected, onChange }) {
   }, [open]);
 
   const handleOpen = () => {
-    if (btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      setPos({ top: rect.bottom + 6, left: Math.max(8, rect.right - 360) });
-    }
     setSearch('');
     setStyleFilter('All');
     setOpen(!open);
@@ -1573,23 +1489,34 @@ function ReciterPicker({ reciters, selected, onChange }) {
   const qfReciters = reciters.filter(r => r.source === 'dc');
   const mp3Reciters = reciters.filter(r => r.source === 'mp3quran');
 
-  // Build unique style tabs from mp3 reciters
-  const styleOptions = ['All', ...Array.from(new Set(mp3Reciters.map(r => r.style))).sort()];
+  // Normalize noisy API style labels into a compact set for usable tabs.
+  const getStyleGroup = (style) => {
+    const s = String(style || '').trim().toLowerCase();
+    if (!s) return 'Other';
+    if (s.includes('murattal')) return 'Murattal';
+    if (s.includes('mujawwad')) return 'Mujawwad';
+    if (s.includes('muallim') || s.includes('kids') || s.includes('child')) return 'Muallim';
+    if (s.includes('tajweed') || s.includes('mujwad')) return 'Tajweed';
+    return 'Other';
+  };
+
+  const groupedMp3Reciters = mp3Reciters.map(r => ({ ...r, styleGroup: getStyleGroup(r.style) }));
+  const styleOptions = ['All', ...Array.from(new Set(groupedMp3Reciters.map(r => r.styleGroup)))];
 
   const query = search.toLowerCase().trim();
   const filteredQf = query ? qfReciters.filter(r => r.name.toLowerCase().includes(query)) : qfReciters;
-  const filteredMp3 = mp3Reciters
-    .filter(r => styleFilter === 'All' || r.style === styleFilter)
+  const filteredMp3 = groupedMp3Reciters
+    .filter(r => styleFilter === 'All' || r.styleGroup === styleFilter)
     .filter(r => !query || r.name.toLowerCase().includes(query));
 
   return (
     <div className="reciter-picker" ref={ref}>
-      <button className="reciter-picker-btn" ref={btnRef} onClick={handleOpen}>
+      <button className="reciter-picker-btn" onClick={handleOpen}>
         <span className="reciter-picker-name">{current.name}</span>
         <span className={`reciter-picker-arrow ${open ? 'open' : ''}`}>&#9662;</span>
       </button>
       {open && (
-        <div className="reciter-picker-dropdown" style={{ top: pos.top, left: pos.left }}>
+        <div className="reciter-picker-dropdown">
           <div className="reciter-picker-search">
             <input
               ref={searchRef}
@@ -1864,18 +1791,25 @@ function BookmarksPanel({ onNavigate }) {
 function Quran({ audioControls, onOpenSearch }) {
   const { settings } = useSettings();
   const [surahs, setSurahs] = useState([]);
+  const [juzs, setJuzs] = useState([]);
+  const [hizbs, setHizbs] = useState([]);
+  const [viewBy, setViewBy] = useState('surah');
   const [selectedSurah, setSelectedSurah] = useState(() => {
     try {
       const saved = localStorage.getItem('lastReadSurah');
       return saved ? JSON.parse(saved).number || 1 : 1;
     } catch { return 1; }
   });
+  const [selectedJuz, setSelectedJuz] = useState(1);
+  const [selectedHizb, setSelectedHizb] = useState(1);
   const [surah, setSurah] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingSurahs, setLoadingSurahs] = useState(true);
+  const [loadingGroupedList, setLoadingGroupedList] = useState(false);
   const [error, setError] = useState(null);
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [surahSearch, setSurahSearch] = useState('');
+  const [sidebarRefreshing, setSidebarRefreshing] = useState(false);
   const [ayahInput, setAyahInput] = useState('');
   const [surahWidth, setSurahWidth] = useState(240);
   const [ayahWidth, setAyahWidth] = useState(160);
@@ -1890,15 +1824,38 @@ function Quran({ audioControls, onOpenSearch }) {
       if (inInput) return;
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault();
-        const idx = surahs.findIndex(s => s.id === selectedSurah);
-        if (e.key === 'ArrowLeft' && idx > 0) setSelectedSurah(surahs[idx - 1].id);
-        if (e.key === 'ArrowRight' && idx < surahs.length - 1) setSelectedSurah(surahs[idx + 1].id);
+        const list = viewBy === 'surah' ? surahs : viewBy === 'juz' ? normalizedJuzs : normalizedHizbs;
+        const selected = viewBy === 'surah' ? selectedSurah : viewBy === 'juz' ? selectedJuz : selectedHizb;
+        const idx = list.findIndex(s => s.id === selected);
+        if (e.key === 'ArrowLeft' && idx > 0) {
+          const prevId = list[idx - 1].id;
+          if (viewBy === 'surah') setSelectedSurah(prevId);
+          if (viewBy === 'juz') setSelectedJuz(prevId);
+          if (viewBy === 'hizb') setSelectedHizb(prevId);
+        }
+        if (e.key === 'ArrowRight' && idx < list.length - 1) {
+          const nextId = list[idx + 1].id;
+          if (viewBy === 'surah') setSelectedSurah(nextId);
+          if (viewBy === 'juz') setSelectedJuz(nextId);
+          if (viewBy === 'hizb') setSelectedHizb(nextId);
+        }
       }
       if (e.key === 'f' && !e.ctrlKey && !e.metaKey) setFullscreen(v => !v);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [surahs, selectedSurah]);
+  }, [surahs, juzs, hizbs, selectedSurah, selectedJuz, selectedHizb, viewBy]);
+
+  useEffect(() => {
+    setSidebarRefreshing(true);
+    const timer = setTimeout(() => setSidebarRefreshing(false), 220);
+    return () => clearTimeout(timer);
+  }, [viewBy]);
+
+  useEffect(() => {
+    if (viewBy === 'surah') return;
+    setShowBookmarks(false);
+  }, [viewBy]);
 
   const onDragStart = (side) => (e) => {
     if (fullscreen) return;
@@ -1932,10 +1889,93 @@ function Quran({ audioControls, onOpenSearch }) {
   const menuAnchorRefs = useRef({});
   const ayahRefs = useRef({});
   const visibleAyahRef = useRef(1);
-  const [activeAyah, setActiveAyah] = useState(1);
+  const [activeAyahKey, setActiveAyahKey] = useState('');
   const ayahPanelRef = useRef(null);
   const readerRef = useRef(null);
   const [wbwTooltip, setWbwTooltip] = useState(null); // { x, y, translit, meaning }
+
+  const quranContentCacheRef = useRef(new Map());
+
+  const currentSelectionNumber = viewBy === 'surah'
+    ? selectedSurah
+    : viewBy === 'juz'
+      ? selectedJuz
+      : selectedHizb;
+
+  const formatVerseRef = (verseKey) => {
+    const key = String(verseKey || '');
+    if (!key.includes(':')) return '';
+    const [chapterPart, versePart] = key.split(':');
+    const chapterNumber = parseInt(chapterPart, 10);
+    const chapterMeta = surahs.find(c => c.id === chapterNumber);
+    const chapterLabel = chapterMeta?.name_simple || `Surah ${chapterPart}`;
+    return `${chapterLabel} ${versePart}`;
+  };
+
+  const toArabicNumber = (value) => Number(value || 0).toLocaleString('ar-EG');
+
+  const extractRangeLabel = (entry) => {
+    const mapping = entry?.verse_mapping;
+    if (mapping && typeof mapping === 'object') {
+      const chapterKeys = Object.keys(mapping)
+        .map(k => parseInt(k, 10))
+        .filter(Number.isFinite)
+        .sort((a, b) => a - b);
+      if (chapterKeys.length) {
+        const firstChapter = chapterKeys[0];
+        const lastChapter = chapterKeys[chapterKeys.length - 1];
+        const firstRangeRaw = String(mapping[firstChapter] || '').split('-');
+        const lastRangeRaw = String(mapping[lastChapter] || '').split('-');
+        const firstVerse = firstRangeRaw[0] || '?';
+        const lastVerse = lastRangeRaw[lastRangeRaw.length - 1] || '?';
+        const firstName = surahs.find(c => c.id === firstChapter)?.name_simple || `Surah ${firstChapter}`;
+        const lastName = surahs.find(c => c.id === lastChapter)?.name_simple || `Surah ${lastChapter}`;
+        return {
+          rangeLabel: `${firstName} ${firstVerse} - ${lastName} ${lastVerse}`,
+          startLabel: `${firstName} ${firstVerse}`,
+        };
+      }
+    }
+
+    const firstKey = entry?.first_verse_key || entry?.first_verse?.verse_key;
+    const lastKey = entry?.last_verse_key || entry?.last_verse?.verse_key;
+    if (firstKey && lastKey) {
+      return {
+        rangeLabel: `${formatVerseRef(firstKey)} - ${formatVerseRef(lastKey)}`,
+        startLabel: formatVerseRef(firstKey),
+      };
+    }
+
+    return { rangeLabel: '', startLabel: '' };
+  };
+
+  const normalizedJuzs = juzs.map((entry, idx) => {
+    const number = entry?.juz_number || entry?.id || idx + 1;
+    const labels = extractRangeLabel(entry);
+    return {
+      id: number,
+      number,
+      title: `Juz ${number}`,
+      subtitle: labels.rangeLabel || 'Range unavailable',
+      startLabel: labels.startLabel || '',
+      mono: true,
+    };
+  });
+
+  const normalizedHizbs = hizbs.map((entry, idx) => {
+    const number = entry?.hizb_number || entry?.id || idx + 1;
+    const labels = extractRangeLabel(entry);
+    return {
+      id: number,
+      number,
+      title: `Hizb ${number}`,
+      subtitle: labels.rangeLabel || labels.startLabel || 'Reference unavailable',
+      startLabel: labels.startLabel || '',
+      mono: true,
+    };
+  });
+
+  const visibleSidebarItems = viewBy === 'surah' ? surahs : viewBy === 'juz' ? normalizedJuzs : normalizedHizbs;
 
   const showWbwTooltip = (e, translit, meaning) => {
     if (!translit && !meaning) return;
@@ -1944,16 +1984,22 @@ function Quran({ audioControls, onOpenSearch }) {
   };
   const hideWbwTooltip = () => setWbwTooltip(null);
 
+  const getAyahKey = (ayah) => {
+    if (!ayah) return '';
+    return String(ayah.verseKey || `${ayah.chapterNumber || surah?.number || 0}:${ayah.numberInSurah || ayah.number || 0}`);
+  };
+
   // ── Reading position tracking ──
   useEffect(() => {
     if (!surah || !readerRef.current) return;
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
-          const ayahNum = parseInt(entry.target.dataset.ayah);
+          const ayahKey = String(entry.target.dataset.ayahkey || '');
+          const ayahNum = parseInt(entry.target.dataset.ayahnum || entry.target.dataset.ayah);
           if (!isNaN(ayahNum)) {
             visibleAyahRef.current = ayahNum;
-            setActiveAyah(ayahNum);
+            setActiveAyahKey(ayahKey);
           }
         }
       });
@@ -1965,6 +2011,7 @@ function Quran({ audioControls, onOpenSearch }) {
 
   // Save reading position on unmount or surah change
   useEffect(() => {
+    if (viewBy !== 'surah') return;
     return () => {
       if (surah) {
         localStorage.setItem('lastReadSurah', JSON.stringify({
@@ -1972,19 +2019,20 @@ function Quran({ audioControls, onOpenSearch }) {
         }));
       }
     };
-  }, [surah]);
+  }, [surah, viewBy]);
 
   // Scroll to last-read ayah on load
   useEffect(() => {
+    if (viewBy !== 'surah') return;
     if (!surah) return;
     try {
       const saved = JSON.parse(localStorage.getItem('lastReadSurah') || '{}');
       if (saved.number === surah.number && saved.ayah > 1) {
-        const el = ayahRefs.current[saved.ayah];
+        const el = ayahRefs.current[`${surah.number}:${saved.ayah}`];
         if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
       }
     } catch {}
-  }, [surah]);
+  }, [surah, viewBy]);
 
   // ── Audio via AppShell props ──
   const { audioState, audioMode, currentAyahAudio, selectedReciter, allReciters, surahInfo,
@@ -1992,12 +2040,13 @@ function Quran({ audioControls, onOpenSearch }) {
 
   const playAyah = (ayah) => {
     if (!surah) return;
-    if (audioMode === 'ayah' && currentAyahAudio === ayah.numberInSurah && surahInfo?.number === surah.number) {
+    const chapterForAyah = ayah.chapterNumber || surah.number;
+    if (audioMode === 'ayah' && currentAyahAudio === ayah.numberInSurah && surahInfo?.number === chapterForAyah) {
       togglePlay();
       return;
     }
-    const verseKey = `${surah.number}:${ayah.numberInSurah}`;
-    fetch(`${API_BASE}/api/audio/verse/${selectedReciter}/${surah.number}`)
+    const verseKey = `${chapterForAyah}:${ayah.numberInSurah}`;
+    fetch(`${API_BASE}/api/audio/verse/${selectedReciter}/${chapterForAyah}`)
       .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
       .then(data => {
         const files = data?.audio_files;
@@ -2018,7 +2067,7 @@ function Quran({ audioControls, onOpenSearch }) {
 
         playAudioUrl(
           audioUrl,
-          { number: surah.number, name: surah.englishName, totalAyahs: surah.ayahs.length },
+          { number: chapterForAyah, name: surah.englishName, totalAyahs: surah.ayahs.length },
           'ayah',
           ayah.numberInSurah,
           { ayahPlaylist, autoAdvance: false }
@@ -2097,7 +2146,7 @@ function Quran({ audioControls, onOpenSearch }) {
       });
   };
 
-  useEffect(() => { setOpenMenuAyah(null); }, [selectedSurah]);
+  useEffect(() => { setOpenMenuAyah(null); }, [viewBy, selectedSurah, selectedJuz, selectedHizb]);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/chapters`)
@@ -2117,67 +2166,127 @@ function Quran({ audioControls, onOpenSearch }) {
   }, []);
 
   useEffect(() => {
-    if (!selectedSurah || surahs.length === 0) return;
+    if (viewBy === 'juz' && juzs.length === 0) {
+      setLoadingGroupedList(true);
+      fetch(`${API_BASE}/api/juzs`)
+        .then(r => { if (!r.ok) throw new Error(`Backend returned ${r.status}`); return r.json(); })
+        .then(data => setJuzs(Array.isArray(data?.juzs) ? data.juzs : []))
+        .catch(err => setError(`Failed to load juz list: ${err.message}`))
+        .finally(() => setLoadingGroupedList(false));
+    }
+
+    if (viewBy === 'hizb' && hizbs.length === 0) {
+      setLoadingGroupedList(true);
+      fetch(`${API_BASE}/api/hizbs`)
+        .then(r => { if (!r.ok) throw new Error(`Backend returned ${r.status}`); return r.json(); })
+        .then(data => setHizbs(Array.isArray(data?.hizbs) ? data.hizbs : []))
+        .catch(err => setError(`Failed to load hizb list: ${err.message}`))
+        .finally(() => setLoadingGroupedList(false));
+    }
+  }, [viewBy, juzs.length, hizbs.length]);
+
+  useEffect(() => {
+    if (viewBy === 'surah' && (!selectedSurah || surahs.length === 0)) return;
+    if (viewBy === 'juz' && !selectedJuz) return;
+    if (viewBy === 'hizb' && !selectedHizb) return;
+
+    const selection = viewBy === 'surah' ? selectedSurah : viewBy === 'juz' ? selectedJuz : selectedHizb;
+    const cacheKey = `${viewBy}:${selection}:${settings.translationId}:${settings.scriptStyle}`;
+    if (quranContentCacheRef.current.has(cacheKey)) {
+      setSurah(quranContentCacheRef.current.get(cacheKey));
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
-    fetch(`${API_BASE}/api/chapters/${selectedSurah}/verses/${settings.translationId}`)
+    const endpoint = viewBy === 'surah'
+      ? `${API_BASE}/api/chapters/${selectedSurah}/verses/${settings.translationId}`
+      : viewBy === 'juz'
+        ? `${API_BASE}/api/juzs/${selectedJuz}/verses/${settings.translationId}`
+        : `${API_BASE}/api/hizbs/${selectedHizb}/verses/${settings.translationId}`;
+
+    fetch(endpoint)
       .then(r => {
-        if (r.status === 404) throw new Error('This surah is not yet available in the current API tier. Chapters 1\u20132 are available.');
+        if (r.status === 404 && viewBy === 'surah') throw new Error('This surah is not yet available in the current API tier. Chapters 1-2 are available.');
         if (!r.ok) throw new Error(`Backend returned ${r.status}`);
         return r.json();
       })
       .then(data => {
         if (!data.verses) throw new Error('No verses found');
-        const chapterInfo = surahs.find(s => s.id === selectedSurah);
         const getArabicText = (v) => {
           if (settings.scriptStyle === 'indopak') return v.text_indopak || v.text_uthmani;
           if (settings.scriptStyle === 'simple') return v.text_simple || v.text_uthmani;
           return v.text_uthmani;
         };
-        const surahData = {
-          number: selectedSurah,
-          englishName: chapterInfo?.name_simple || 'Chapter',
-          translated: chapterInfo?.translated || '',
-          name: chapterInfo?.name || '\u0633\u0648\u0631\u0629',
-          ayahs: data.verses.map(v => ({
-            number: v.verse_number,
-            numberInSurah: v.verse_number_in_surah || v.verse_number,
-            text: getArabicText(v),
-            translation: v.translation_text || 'Translation not available',
-          })),
+
+        const activeMeta = viewBy === 'surah'
+          ? surahs.find(s => s.id === selectedSurah)
+          : viewBy === 'juz'
+            ? normalizedJuzs.find(j => j.id === selectedJuz)
+            : normalizedHizbs.find(h => h.id === selectedHizb);
+
+        const built = {
+          number: selection,
+          contextType: viewBy,
+          englishName: viewBy === 'surah' ? (activeMeta?.name_simple || 'Chapter') : (activeMeta?.title || 'Quran Section'),
+          translated: viewBy === 'surah' ? (activeMeta?.translated || '') : (activeMeta?.subtitle || ''),
+          name: viewBy === 'surah'
+            ? (activeMeta?.name || 'سورة')
+            : (viewBy === 'juz' ? `الجزء ${toArabicNumber(selection)}` : `الحزب ${toArabicNumber(selection)}`),
+          detailLine: viewBy === 'surah'
+            ? `Surah ${selection} · ${data.verses.length} Ayahs`
+            : `${viewBy === 'juz' ? 'Juz' : 'Hizb'} ${selection} · ${data.verses.length} Ayahs`,
+          ayahs: data.verses.map((v, idx) => {
+            const verseKey = String(v.verse_key || '');
+            const chapterNumber = v.chapter_number || v.chapter_id || (verseKey.includes(':') ? parseInt(verseKey.split(':')[0], 10) : null);
+            const numberInSurah = v.verse_number_in_surah || (verseKey.includes(':') ? parseInt(verseKey.split(':')[1], 10) : null) || v.verse_number || idx + 1;
+            return {
+              number: v.verse_number || idx + 1,
+              numberInSurah,
+              chapterNumber,
+              verseKey,
+              text: getArabicText(v),
+              translation: v.translation_text || 'Translation not available',
+            };
+          }),
         };
-        setSurah(surahData);
-        // Record in recently visited
-        recordVisitedSurah(selectedSurah, surahData.englishName);
-        // Update adaptive daily goal progression
-        recordDailyGoalProgress(selectedSurah);
+
+        quranContentCacheRef.current.set(cacheKey, built);
+        setSurah(built);
+
+        if (viewBy === 'surah') {
+          recordVisitedSurah(selectedSurah, built.englishName);
+          recordDailyGoalProgress(selectedSurah);
+        }
       })
       .catch(err => setError(`Failed to load verses: ${err.message}`))
       .finally(() => setLoading(false));
-  }, [selectedSurah, surahs, settings.translationId, settings.scriptStyle]);
+  }, [viewBy, selectedSurah, selectedJuz, selectedHizb, surahs, juzs, hizbs, settings.translationId, settings.scriptStyle]);
 
   // ── Sync ayah panel scroll ──
   useEffect(() => {
     if (!ayahPanelRef.current) return;
     const activeBtn = ayahPanelRef.current.querySelector('.ayah-panel-btn.active');
     if (activeBtn) activeBtn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [activeAyah]);
+  }, [activeAyahKey]);
 
   // Follow currently playing ayah automatically during playback.
   useEffect(() => {
     if (!surah || !currentAyahAudio || surahInfo?.number !== surah.number) return;
-    const el = ayahRefs.current[currentAyahAudio];
+    const match = surah.ayahs.find(a => a.numberInSurah === currentAyahAudio && (a.chapterNumber || surah.number) === surahInfo?.number);
+    const key = getAyahKey(match);
+    const el = ayahRefs.current[key];
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setActiveAyah(currentAyahAudio);
+      setActiveAyahKey(key);
       visibleAyahRef.current = currentAyahAudio;
     }
   }, [currentAyahAudio, surah, surahInfo]);
 
   // ── Fetch word-by-word data always when a surah is selected ──
   useEffect(() => {
-    if (!selectedSurah) {
+    if (viewBy !== 'surah' || !selectedSurah) {
       setWordsData({});
       return;
     }
@@ -2187,7 +2296,7 @@ function Quran({ audioControls, onOpenSearch }) {
         if (data?.words_by_verse) setWordsData(data.words_by_verse);
       })
       .catch(() => {});
-  }, [selectedSurah]);
+  }, [viewBy, selectedSurah]);
 
   const spacingValues = {
     compact: { gap: '6px', padding: '14px 14px 10px 44px' },
@@ -2199,11 +2308,11 @@ function Quran({ audioControls, onOpenSearch }) {
   const scriptClass = SCRIPT_CLASS_MAP[settings.scriptStyle] || 'script-uthmani';
   const scale = settings.globalTextScale || 1;
 
-  const toggleMenu = (ayahNum) => {
-    setOpenMenuAyah(prev => prev === ayahNum ? null : ayahNum);
+  const toggleMenu = (ayahKey) => {
+    setOpenMenuAyah(prev => prev === ayahKey ? null : ayahKey);
   };
 
-  const isCurrentSurahAudio = surahInfo?.number === surah?.number;
+  const isCurrentSurahAudio = viewBy === 'surah' && surahInfo?.number === surah?.number;
   const isSurahPlaying = isCurrentSurahAudio && audioMode === 'surah' && audioState === 'playing';
   const isSurahPaused = isCurrentSurahAudio && audioMode === 'surah' && audioState === 'paused';
   const isSurahLoading = isCurrentSurahAudio && audioMode === 'surah' && audioState === 'loading';
@@ -2214,6 +2323,26 @@ function Quran({ audioControls, onOpenSearch }) {
       ? 'paused'
       : 'loading';
   const nowPlayingTotal = surah?.ayahs?.length || surahInfo?.totalAyahs || '?';
+  const sidebarQuery = surahSearch.trim().toLowerCase();
+  const selectedSidebarId = viewBy === 'surah' ? selectedSurah : viewBy === 'juz' ? selectedJuz : selectedHizb;
+  const filteredSidebarItems = visibleSidebarItems.filter(item => {
+    if (!sidebarQuery) return true;
+    if (viewBy === 'surah') {
+      return (
+        item.name_simple.toLowerCase().includes(sidebarQuery) ||
+        item.name.includes(sidebarQuery) ||
+        String(item.chapter_number).includes(sidebarQuery)
+      );
+    }
+    return (
+      String(item.number).includes(sidebarQuery) ||
+      String(item.title || '').toLowerCase().includes(sidebarQuery) ||
+      String(item.subtitle || '').toLowerCase().includes(sidebarQuery) ||
+      String(item.startLabel || '').toLowerCase().includes(sidebarQuery)
+    );
+  });
+  const sidebarPlaceholder = viewBy === 'surah' ? 'Search surah or #' : viewBy === 'juz' ? 'Search juz or # (e.g. 2, 20)' : 'Search hizb or # (e.g. 2, 20)';
+  const sidebarTitle = viewBy === 'surah' ? 'Surahs' : viewBy === 'juz' ? 'Juzs' : 'Hizbs';
 
   return (
     <>
@@ -2225,20 +2354,31 @@ function Quran({ audioControls, onOpenSearch }) {
         data-fullscreen={fullscreen ? 'true' : undefined}
       >
 
-        {/* ─── Surah Selector (left) ─── */}
+        {/* ─── Left Selector (View By) ─── */}
         <div className="surah-selector-wrapper">
           <div className="surah-selector-header">
-            <div className="surah-selector-title">Surahs</div>
-            <button
-              className={`bookmarks-toggle-btn ${showBookmarks ? 'active' : ''}`}
-              onClick={() => setShowBookmarks(!showBookmarks)}
-              title="Bookmarks"
-            >
-              <IconBookmarkFill filled={showBookmarks} />
-            </button>
+            <div className="surah-selector-title">{sidebarTitle}</div>
+            {viewBy === 'surah' && (
+              <button
+                className={`bookmarks-toggle-btn ${showBookmarks ? 'active' : ''}`}
+                onClick={() => setShowBookmarks(!showBookmarks)}
+                title="Bookmarks"
+              >
+                <IconBookmarkFill filled={showBookmarks} />
+              </button>
+            )}
           </div>
 
-          {showBookmarks ? (
+          <div className="viewby-control">
+            <div className="viewby-label">View By</div>
+            <div className="viewby-tabs" role="tablist" aria-label="Quran View Mode">
+              <button className={`viewby-tab ${viewBy === 'surah' ? 'active' : ''}`} onClick={() => setViewBy('surah')} role="tab" aria-selected={viewBy === 'surah'}>Surah</button>
+              <button className={`viewby-tab ${viewBy === 'juz' ? 'active' : ''}`} onClick={() => setViewBy('juz')} role="tab" aria-selected={viewBy === 'juz'}>Juz</button>
+              <button className={`viewby-tab ${viewBy === 'hizb' ? 'active' : ''}`} onClick={() => setViewBy('hizb')} role="tab" aria-selected={viewBy === 'hizb'}>Hizb</button>
+            </div>
+          </div>
+
+          {viewBy === 'surah' && showBookmarks ? (
             <BookmarksPanel onNavigate={(surahNum) => { setSelectedSurah(surahNum); setShowBookmarks(false); }} />
           ) : (
             <>
@@ -2246,34 +2386,32 @@ function Quran({ audioControls, onOpenSearch }) {
                 <input
                   type="text"
                   className="sidebar-search-input"
-                  placeholder="Search surah or #"
+                  placeholder={sidebarPlaceholder}
                   value={surahSearch}
                   onChange={e => setSurahSearch(e.target.value)}
                 />
               </div>
-              <div className="surah-list">
-                {loadingSurahs ? (
+              <div className={`surah-list ${sidebarRefreshing ? 'list-refreshing' : ''}`}>
+                {loadingSurahs || loadingGroupedList ? (
                   <div className="skeleton-list">
                     {[...Array(10)].map((_, i) => <div key={i} className="skeleton-item" />)}
                   </div>
-                ) : surahs
-                    .filter(s => {
-                      const q = surahSearch.trim().toLowerCase();
-                      if (!q) return true;
-                      return (
-                        s.name_simple.toLowerCase().includes(q) ||
-                        s.name.includes(q) ||
-                        String(s.chapter_number) === q
-                      );
-                    })
-                    .map(s => (
-                  <button key={s.id}
-                    className={`surah-item ${selectedSurah === s.id ? 'active' : ''}`}
-                    onClick={() => { setSelectedSurah(s.id); setSurahSearch(''); }}>
-                    <span className="surah-item-number">{s.chapter_number}</span>
+                ) : filteredSidebarItems.map(item => (
+                  <button key={item.id}
+                    className={`surah-item ${selectedSidebarId === item.id ? 'active' : ''}`}
+                    onClick={() => {
+                      if (viewBy === 'surah') setSelectedSurah(item.id);
+                      if (viewBy === 'juz') setSelectedJuz(item.id);
+                      if (viewBy === 'hizb') setSelectedHizb(item.id);
+                      setSurahSearch('');
+                    }}>
+                    <span className="surah-item-number">{viewBy === 'surah' ? item.chapter_number : item.number}</span>
                     <div className="surah-item-text">
-                      <div className="surah-item-name">{s.name_simple}</div>
-                      <div className="surah-item-arabic">{s.name}</div>
+                      <div className="surah-item-name">{viewBy === 'surah' ? item.name_simple : item.title}</div>
+                      <div className="surah-item-arabic">{viewBy === 'surah' ? item.name : item.subtitle}</div>
+                      {viewBy !== 'surah' && item.startLabel && (
+                        <div className="surah-item-meta">Starting Verse: {item.startLabel}</div>
+                      )}
                     </div>
                   </button>
                 ))}
@@ -2295,7 +2433,7 @@ function Quran({ audioControls, onOpenSearch }) {
                 <h2 style={{ fontSize: `${2 * scale}rem` }}>{surah.englishName}</h2>
                 {surah.translated && <p className="surah-translated">{surah.translated}</p>}
                 <p className={`surah-arabic ${scriptClass}`}>{surah.name}</p>
-                <p className="surah-info">Surah {surah.number} &middot; {surah.ayahs.length} Ayahs</p>
+                <p className="surah-info">{surah.detailLine || `Surah ${surah.number} · ${surah.ayahs.length} Ayahs`}</p>
                 {showNowPlayingPill && (
                   <div className={`reader-now-playing-pill ${nowPlayingStateClass}`}>
                     Playing: Ayah {currentAyahAudio}/{nowPlayingTotal}
@@ -2303,31 +2441,35 @@ function Quran({ audioControls, onOpenSearch }) {
                 )}
 
                 <div className="surah-audio-bar">
-                  <button
-                    className={`surah-play-btn ${isSurahPlaying ? 'playing' : ''} ${isSurahLoading ? 'loading' : ''}`}
-                    onClick={playSurah}
-                    disabled={isSurahLoading}
-                  >
-                    {isSurahLoading ? (
-                      <><span className="surah-play-spinner" /> Loading...</>
-                    ) : isSurahPlaying ? (
-                      <><IconPause /> Pause Surah</>
-                    ) : isSurahPaused ? (
-                      <><IconPlaySmall /> Resume Surah</>
-                    ) : (
-                      <><IconPlaySmall /> Play Surah</>
-                    )}
-                  </button>
-                  {(isSurahPlaying || isSurahPaused) && (
-                    <button className="surah-stop-btn" onClick={stopAudio} title="Stop">
-                      <IconStop />
-                    </button>
+                  {viewBy === 'surah' && (
+                    <>
+                      <button
+                        className={`surah-play-btn ${isSurahPlaying ? 'playing' : ''} ${isSurahLoading ? 'loading' : ''}`}
+                        onClick={playSurah}
+                        disabled={isSurahLoading}
+                      >
+                        {isSurahLoading ? (
+                          <><span className="surah-play-spinner" /> Loading...</>
+                        ) : isSurahPlaying ? (
+                          <><IconPause /> Pause Surah</>
+                        ) : isSurahPaused ? (
+                          <><IconPlaySmall /> Resume Surah</>
+                        ) : (
+                          <><IconPlaySmall /> Play Surah</>
+                        )}
+                      </button>
+                      {(isSurahPlaying || isSurahPaused) && (
+                        <button className="surah-stop-btn" onClick={stopAudio} title="Stop">
+                          <IconStop />
+                        </button>
+                      )}
+                      <ReciterPicker
+                        reciters={allReciters}
+                        selected={selectedReciter}
+                        onChange={id => { stopAudio(); setSelectedReciter(id); }}
+                      />
+                    </>
                   )}
-                  <ReciterPicker
-                    reciters={allReciters}
-                    selected={selectedReciter}
-                    onChange={id => { stopAudio(); setSelectedReciter(id); }}
-                  />
                   {/* Search & Fullscreen inline */}
                   <div className="reader-toolbar">
                     <button className="reader-toolbar-btn" onClick={() => onOpenSearch?.()}
@@ -2371,23 +2513,35 @@ function Quran({ audioControls, onOpenSearch }) {
                 )}
                 <div className="ayahs-container" style={{ gap: currentSpacing.gap }}>
                   {surah.ayahs.map(ayah => {
-                    const isMenuOpen = openMenuAyah === ayah.number;
-                    const isAyahPlaying = currentAyahAudio === ayah.numberInSurah && audioState === 'playing' && surahInfo?.number === surah.number;
+                    const ayahKey = getAyahKey(ayah);
+                    const ayahChapter = ayah.chapterNumber || surah.number;
+                    const isMenuOpen = openMenuAyah === ayahKey;
+                    const isAyahPlaying = currentAyahAudio === ayah.numberInSurah && audioState === 'playing' && surahInfo?.number === ayahChapter;
                     const isAyahActive = isMenuOpen || isAyahPlaying;
-                    if (!menuAnchorRefs.current[ayah.number]) {
-                      menuAnchorRefs.current[ayah.number] = { current: null };
+                    if (!menuAnchorRefs.current[ayahKey]) {
+                      menuAnchorRefs.current[ayahKey] = { current: null };
                     }
                     return (
-                      <div key={ayah.number}
+                      <div key={ayahKey}
                         data-ayah={ayah.number}
-                        ref={el => { ayahRefs.current[ayah.number] = el; }}
+                        data-ayahkey={ayahKey}
+                        data-ayahnum={ayah.numberInSurah}
+                        ref={el => { ayahRefs.current[ayahKey] = el; }}
                         className={`ayah-card ${settings.viewMode === 'flat' ? 'flat' : ''} ${isAyahActive ? 'ayah-active' : ''}`}
                         style={{ padding: currentSpacing.padding }}>
-                        {settings.showAyahBadges && <div className="ayah-number">{ayah.numberInSurah}</div>}
+                        {settings.showAyahBadges && (
+                          <button 
+                            className="ayah-number"
+                            onClick={e => { e.stopPropagation(); toggleMenu(ayahKey); }}
+                            title="Ayah menu"
+                          >
+                            {ayah.numberInSurah}
+                          </button>
+                        )}
                         <button
                           className={`ayah-more-btn ${isMenuOpen ? 'open' : ''}`}
-                          ref={el => { menuAnchorRefs.current[ayah.number].current = el; }}
-                          onClick={e => { e.stopPropagation(); toggleMenu(ayah.number); }}
+                          ref={el => { menuAnchorRefs.current[ayahKey].current = el; }}
+                          onClick={e => { e.stopPropagation(); toggleMenu(ayahKey); }}
                           title="Ayah actions"
                         >
                           <IconMoreVert />
@@ -2432,9 +2586,9 @@ function Quran({ audioControls, onOpenSearch }) {
                         {isMenuOpen && (
                           <AyahDropdownMenu
                             ayah={ayah}
-                            surahNumber={surah.number}
+                            surahNumber={ayah.chapterNumber || surah.number}
                             surahName={surah.englishName}
-                            anchorRef={menuAnchorRefs.current[ayah.number]}
+                            anchorRef={menuAnchorRefs.current[ayahKey]}
                             onClose={() => setOpenMenuAyah(null)}
                             onPlayAyah={playAyah}
                             ayahPlaying={isAyahPlaying}
@@ -2470,8 +2624,12 @@ function Quran({ audioControls, onOpenSearch }) {
                 const n = parseInt(v);
                 if (!isNaN(n) && n >= 1 && surah?.ayahs?.[n - 1]) {
                   const ayah = surah.ayahs[n - 1];
-                  const el = ayahRefs.current[ayah.number];
-                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  const key = getAyahKey(ayah);
+                  const el = ayahRefs.current[key];
+                  if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setActiveAyahKey(key);
+                  }
                 }
               }}
             />
@@ -2479,11 +2637,15 @@ function Quran({ audioControls, onOpenSearch }) {
           <div className="ayah-panel-list" ref={ayahPanelRef}>
             {surah?.ayahs?.length ? surah.ayahs.map(a => (
               <button
-                key={a.numberInSurah}
-                className={`ayah-panel-btn ${activeAyah === a.number ? 'active' : ''}`}
+                key={getAyahKey(a)}
+                className={`ayah-panel-btn ${activeAyahKey === getAyahKey(a) ? 'active' : ''}`}
                 onClick={() => {
-                  const el = ayahRefs.current[a.number];
-                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  const key = getAyahKey(a);
+                  const el = ayahRefs.current[key];
+                  if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setActiveAyahKey(key);
+                  }
                 }}
               >
                 <span className="ayah-panel-num">{a.numberInSurah}</span>
@@ -2734,7 +2896,7 @@ function Salah() {
   return (
     <div className="salah-page" style={{ fontSize: `${scale}rem` }}>
 
-      {/* ── Location Header ── */}
+      {/* ── Location Header (Full Width) ── */}
       <div className="salah-location">
         <div className="salah-location-main">
           <span className="salah-location-pin"><IconMapPin /></span>
@@ -2749,159 +2911,175 @@ function Salah() {
           {hijriDate && gregorianDate && <span className="salah-date-sep">&middot;</span>}
           <span className="salah-gregorian">{gregorianDate}</span>
         </div>
-        {hijriInfo && (
-          <div className="salah-meta-strip">
-            <span className="salah-meta-pill">{hijriInfo.monthArabic}</span>
-            <span className="salah-meta-pill">{hijriInfo.day} / 30 approx.</span>
-            <span className="salah-meta-pill">{moonInfo.emoji} {moonInfo.name}</span>
-          </div>
-        )}
-      </div>
-
-      {/* ── Next Prayer Card ── */}
-      <div className={`salah-next-card ${allPassed ? 'completed' : ''}`}>
-        {allPassed ? (
-          <>
-            <div className="salah-next-label">Today&rsquo;s Prayers</div>
-            <div className="salah-next-name">Completed</div>
-            <p className="salah-next-subtitle">All {prayerCount} prayers for today have passed</p>
-          </>
-        ) : (
-          <>
-            <div className="salah-next-label">Up Next</div>
-            <div className="salah-next-name">{nextPrayer.name}</div>
-            <div className={`salah-next-arabic ${scriptClass}`}>{nextPrayer.arabic}</div>
-            <div className="salah-next-time">{formatDisplayTime(nextPrayer.time)}</div>
-            <div className="salah-next-progress">
-              <div className="salah-next-progress-fill" style={{ width: `${progress}%` }} />
-            </div>
-            <div className="salah-next-countdown">
-              {cdH > 0 && <span className="salah-cd-seg">{cdH}<small>h</small></span>}
-              <span className="salah-cd-seg">{String(cdM).padStart(2, '0')}<small>m</small></span>
-              <span className="salah-cd-seg">{String(cdS).padStart(2, '0')}<small>s</small></span>
-            </div>
-          </>
-        )}
-      </div>
-
-      <div className="salah-insights-grid">
-        <div className="salah-insight-card emphasis">
-          <span className="salah-insight-icon"><IconClock /></span>
-          <span className="salah-insight-label">Local Time</span>
-          <span className="salah-insight-value">{currentTimeLabel}</span>
-          <span className="salah-insight-sub">{hour12 ? '12-hour format' : '24-hour format'}</span>
-        </div>
-        <div className="salah-insight-card">
-          <span className="salah-insight-label">Sunrise</span>
-          <span className="salah-insight-value">{sunrise ? formatDisplayTime(sunrise.time) : '--'}</span>
-          <span className="salah-insight-sub">Start of daylight</span>
-        </div>
-        <div className="salah-insight-card">
-          <span className="salah-insight-label">Sunset</span>
-          <span className="salah-insight-value">{sunset ? formatDisplayTime(sunset.time) : '--'}</span>
-          <span className="salah-insight-sub">In {formatDurationShort(untilSunset)}</span>
-        </div>
-        <div className="salah-insight-card">
-          <span className="salah-insight-label">Last Third</span>
-          <span className="salah-insight-value">{qiyamStart ? formatDisplayTime(qiyamStart) : '--'}</span>
-          <span className="salah-insight-sub">Night window {qiyamWindow || '--'}</span>
+        {/* Location Metadata: Moon & Hijri */}
+        <div className="salah-location-meta">
+          <span className="salah-location-stat">{moonInfo.emoji} {moonInfo.name}</span>
+          <span className="salah-location-stat">{hijriInfo?.monthArabic || 'Islamic month'} {hijriInfo?.year || '--'} AH</span>
         </div>
       </div>
 
-      <div className="salah-lunar-grid">
-        <div className="salah-lunar-card">
-          <span className="salah-lunar-kicker">Hijri Month</span>
-          <div className="salah-lunar-main">{hijriInfo?.monthArabic || 'Islamic month'}</div>
-          <div className="salah-lunar-sub">Year {hijriInfo?.year || '--'} AH</div>
-        </div>
-        <div className="salah-lunar-card moon">
-          <span className="salah-lunar-kicker">Moon</span>
-          <div className="salah-lunar-main salah-moon-main"><span className="salah-moon-emoji">{moonInfo.emoji}</span>{moonInfo.name}</div>
-          <div className="salah-lunar-sub">{moonInfo.illumination}% illuminated · age {moonInfo.ageDays} days</div>
-        </div>
-      </div>
-
-      {/* ── Today's Summary ── */}
+      {/* Main Summary: centered across both columns */}
       <div className="salah-summary">
         <span>{prayerCount} daily prayers</span>
         <span className="salah-summary-dot">&middot;</span>
         <span>{passedCount} completed</span>
         <span className="salah-summary-dot">&middot;</span>
         <span>{checkedCount} checked off</span>
-        {!allPassed && nextPrayer && (
-          <>
-            <span className="salah-summary-dot">&middot;</span>
-            <span>Next: {nextPrayer.name}</span>
-          </>
-        )}
       </div>
 
-      {/* ── Prayer Schedule ── */}
-      <div className="salah-schedule">
-        <div className="salah-schedule-label">Today&rsquo;s Schedule</div>
-        <div className="salah-schedule-list">
-          {prayers.map(p => {
-            const isPassed = p.time <= now;
-            const isNext = nextPrayer && p.key === nextPrayer.key;
-            return (
-              <div key={p.key} className={`salah-row ${isPassed ? 'passed' : ''} ${isNext ? 'next' : ''} ${!p.isPrayer ? 'non-prayer' : ''}`}>
-                <div className="salah-row-left">
-                  {isNext && <span className="salah-row-dot" />}
-                  <span className="salah-row-name">{p.name}</span>
-                  <span className={`salah-row-arabic ${scriptClass}`}>{p.arabic}</span>
+      {/* Balanced two-column layout */}
+      <div className="salah-main-grid">
+      {/* LEFT COLUMN: Prayer Schedule */}
+      <div className="salah-schedule-column">
+
+        {/* Prayer Schedule List */}
+        <div className="salah-schedule">
+          <div className="salah-schedule-label">Today&rsquo;s Schedule</div>
+          <div className="salah-schedule-list">
+            {prayers.map(p => {
+              const isPassed = p.time <= now;
+              const isNext = nextPrayer && p.key === nextPrayer.key;
+              return (
+                <div key={p.key} className={`salah-row ${isPassed ? 'passed' : ''} ${isNext ? 'next' : ''} ${!p.isPrayer ? 'non-prayer' : ''}`}>
+                  <div className="salah-row-left">
+                    {isNext && <span className="salah-row-dot" />}
+                    <span className="salah-row-name">{p.name}</span>
+                    <span className={`salah-row-arabic ${scriptClass}`}>{p.arabic}</span>
+                  </div>
+                  <div className="salah-row-right">
+                    <span className="salah-row-time">{formatDisplayTime(p.time)}</span>
+                    {p.isPrayer && (
+                      <button
+                        className={`salah-check-btn ${completedPrayers[p.key] ? 'checked' : ''}`}
+                        onClick={() => togglePrayerDone(p.key)}
+                        aria-label={`Mark ${p.name} as ${completedPrayers[p.key] ? 'not completed' : 'completed'}`}
+                        title={completedPrayers[p.key] ? 'Completed' : 'Mark completed'}
+                      >
+                        {completedPrayers[p.key] ? <IconCheck /> : null}
+                      </button>
+                    )}
+                    {isPassed && p.isPrayer && <span className="salah-row-badge passed">Passed</span>}
+                    {isNext && <span className="salah-row-badge next">Next</span>}
+                  </div>
                 </div>
-                <div className="salah-row-right">
-                  <span className="salah-row-time">{formatDisplayTime(p.time)}</span>
-                  {p.isPrayer && (
-                    <button
-                      className={`salah-check-btn ${completedPrayers[p.key] ? 'checked' : ''}`}
-                      onClick={() => togglePrayerDone(p.key)}
-                      aria-label={`Mark ${p.name} as ${completedPrayers[p.key] ? 'not completed' : 'completed'}`}
-                      title={completedPrayers[p.key] ? 'Completed' : 'Mark completed'}
-                    >
-                      {completedPrayers[p.key] ? <IconCheck /> : null}
-                    </button>
-                  )}
-                  {isPassed && p.isPrayer && <span className="salah-row-badge passed">Passed</span>}
-                  {isNext && <span className="salah-row-badge next">Next</span>}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {/* ── Info Footer ── */}
-      <div className="salah-footer-grid">
-        <div className="salah-footer-card">
-          <span className="salah-footer-icon"><IconCompass /></span>
-          <span className="salah-footer-label">Qibla Direction</span>
-          {qiblaInfo && (
-            <div className="salah-qibla-compass" aria-label="Qibla mini compass">
-              <div
-                className="salah-qibla-needle"
-                style={{ transform: `translate(-50%, -100%) rotate(${qiblaInfo.bearing.toFixed(1)}deg)` }}
-              />
-              <div className="salah-qibla-center" />
-              <span className="salah-qibla-n">N</span>
-              <span className="salah-qibla-e">E</span>
-              <span className="salah-qibla-s">S</span>
-              <span className="salah-qibla-w">W</span>
-            </div>
-          )}
-          {qiblaLoading ? (
-            <span className="salah-footer-value">Calculating…</span>
-          ) : qiblaInfo ? (
+      {/* RIGHT COLUMN: Next Prayer + Qibla */}
+      <div className="salah-center-column">
+        {/* Next Prayer Countdown Card */}
+        <div className={`salah-next-card ${allPassed ? 'completed' : ''}`}>
+          {allPassed ? (
             <>
-              <span className="salah-footer-value">{qiblaInfo.bearing.toFixed(1)}° ({qiblaInfo.cardinal})</span>
-              <span className="salah-footer-value">{qiblaInfo.distanceKm.toFixed(0)} km to Kaaba</span>
+              <div className="salah-next-label">Today&rsquo;s Prayers</div>
+              <div className="salah-next-name">Completed</div>
+              <p className="salah-next-subtitle">All {prayerCount} prayers for today have passed</p>
             </>
           ) : (
-            <span className="salah-footer-value">{qiblaError || 'Unavailable'}</span>
+            <>
+              <div className="salah-next-label">Up Next</div>
+              <div className="salah-next-name">{nextPrayer.name}</div>
+              <div className={`salah-next-arabic ${scriptClass}`}>{nextPrayer.arabic}</div>
+              <div className="salah-next-time">{formatDisplayTime(nextPrayer.time)}</div>
+              <div className="salah-next-progress">
+                <div className="salah-next-progress-fill" style={{ width: `${progress}%` }} />
+              </div>
+              <div className="salah-next-countdown">
+                {cdH > 0 && <span className="salah-cd-seg">{cdH}<small>h</small></span>}
+                <span className="salah-cd-seg">{String(cdM).padStart(2, '0')}<small>m</small></span>
+                <span className="salah-cd-seg">{String(cdS).padStart(2, '0')}<small>s</small></span>
+              </div>
+            </>
           )}
-          <button className="salah-qibla-btn" onClick={fetchQiblaForLocation} disabled={qiblaLoading}>
-            {qiblaLoading ? 'Refreshing…' : 'Refresh'}
-          </button>
+        </div>
+
+        {/* Qibla Direction Card */}
+        <div className="salah-qibla-card">
+          <span className="salah-footer-icon"><IconCompass /></span>
+          <span className="salah-footer-label">Qibla Direction</span>
+          <div className="salah-qibla-content">
+            {qiblaInfo && (
+              <div className="salah-qibla-compass" aria-label="Qibla mini compass">
+                <div
+                  className="salah-qibla-needle"
+                  style={{ transform: `translate(-50%, -100%) rotate(${qiblaInfo.bearing.toFixed(1)}deg)` }}
+                />
+                <div className="salah-qibla-center" />
+                <span className="salah-qibla-n">N</span>
+                <span className="salah-qibla-e">E</span>
+                <span className="salah-qibla-s">S</span>
+                <span className="salah-qibla-w">W</span>
+              </div>
+            )}
+            <div className="salah-qibla-stats">
+              {qiblaLoading ? (
+                <span className="salah-footer-value">Calculating…</span>
+              ) : qiblaInfo ? (
+                <>
+                  <span className="salah-footer-value">{qiblaInfo.bearing.toFixed(1)}° ({qiblaInfo.cardinal})</span>
+                  <span className="salah-footer-value">{qiblaInfo.distanceKm.toFixed(0)} km to Kaaba</span>
+                </>
+              ) : (
+                <span className="salah-footer-value">{qiblaError || 'Unavailable'}</span>
+              )}
+              <button className="salah-qibla-btn" onClick={fetchQiblaForLocation} disabled={qiblaLoading}>
+                {qiblaLoading ? 'Refreshing…' : 'Refresh'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      {/* RIGHT COLUMN: Utilities Stacked (1fr) */}
+      <div className="salah-right-column">
+        {/* Local Time */}
+        <div className="salah-utility-card">
+          <span className="salah-insight-icon"><IconClock /></span>
+          <span className="salah-insight-label">Local Time</span>
+          <span className="salah-insight-value">{currentTimeLabel}</span>
+          <span className="salah-insight-sub">{hour12 ? '12-hour' : '24-hour'}</span>
+        </div>
+
+        {/* Sunrise */}
+        <div className="salah-utility-card">
+          <span className="salah-insight-label">Sunrise</span>
+          <span className="salah-insight-value">{sunrise ? formatDisplayTime(sunrise.time) : '--'}</span>
+          <span className="salah-insight-sub">Start of daylight</span>
+        </div>
+
+        {/* Sunset */}
+        <div className="salah-utility-card">
+          <span className="salah-insight-label">Sunset</span>
+          <span className="salah-insight-value">{sunset ? formatDisplayTime(sunset.time) : '--'}</span>
+          <span className="salah-insight-sub">In {formatDurationShort(untilSunset)}</span>
+        </div>
+
+        {/* Last Third of Night */}
+        <div className="salah-utility-card">
+          <span className="salah-insight-label">Last Third</span>
+          <span className="salah-insight-value">{qiyamStart ? formatDisplayTime(qiyamStart) : '--'}</span>
+          <span className="salah-insight-sub">Night window {qiyamWindow || '--'}</span>
+        </div>
+
+        {/* Jumu'ah Info */}
+        <div className="salah-utility-card">
+          <span className="salah-footer-icon"><IconMasjid /></span>
+          <span className="salah-footer-label">{isFriday ? "Jumu\u2019ah Today" : "Jumu\u2019ah"}</span>
+          <span className="salah-footer-value">{isFriday ? 'At Dhuhr time' : `In ${daysToFriday} day${daysToFriday > 1 ? 's' : ''}`}</span>
+        </div>
+      </div>
+
+      {/* Settings Row */}
+      <div className="salah-method-row salah-footer-row">
+        <div className="salah-footer-card">
+          <span className="salah-footer-icon"><IconClock /></span>
+          <span className="salah-footer-label">Local Time</span>
+          <span className="salah-footer-value">{currentTimeLabel}</span>
+          <span className="salah-footer-value">{hour12 ? '12-hour format' : '24-hour format'}</span>
         </div>
         <div className="salah-footer-card">
           <span className="salah-footer-icon"><IconMasjid /></span>
@@ -3980,7 +4158,7 @@ function GlobalAudioPlayer({ audio, onClose }) {
 // ─── App Shell ─────────────────────────────────────────────
 
 function AppShell({ tab, setTab }) {
-  const { settings, showSettings, setShowSettings } = useSettings();
+  const { settings, updateSetting, showSettings, setShowSettings } = useSettings();
   const [pendingSurah, setPendingSurah] = useState(null);
 
   // ── Navigation history ──
@@ -4052,6 +4230,41 @@ function AppShell({ tab, setTab }) {
   const [globalReciters, setGlobalReciters] = useState(QF_RECITERS);
   const [globalAyahPlaylist, setGlobalAyahPlaylist] = useState(null);
   const [globalAutoAdvance, setGlobalAutoAdvance] = useState(false);
+
+  // ── Page transition animations ──
+  const [transitionClass, setTransitionClass] = useState('');
+  const prevTabRef = useRef(null);
+  const tabOrderRef = useRef(['home', 'quran', 'salah', 'explore']);
+
+  useEffect(() => {
+    // First render - just set the reference without animation
+    if (prevTabRef.current === null) {
+      prevTabRef.current = tab;
+      return;
+    }    
+
+    // Only animate if tab actually changed
+    if (prevTabRef.current === tab) return;
+
+    // Determine direction based on tab order
+    const prevIndex = tabOrderRef.current.indexOf(prevTabRef.current);
+    const currentIndex = tabOrderRef.current.indexOf(tab);
+    
+    // Forward: moving to a tab that comes later, OR going forward in history
+    const isMovingForward = currentIndex > prevIndex;
+    
+    // Apply animation class
+    setTransitionClass(isMovingForward ? 'transition-forward' : 'transition-back');
+    
+    // Remove animation class after animation completes (350ms)
+    const timer = setTimeout(() => {
+      setTransitionClass('');
+    }, 350);
+
+    prevTabRef.current = tab;
+    
+    return () => clearTimeout(timer);
+  }, [tab]);
 
   // Load mp3quran reciters at app level
   useEffect(() => {
@@ -4136,12 +4349,18 @@ function AppShell({ tab, setTab }) {
     audio.addEventListener('canplaythrough', () => {
       audio.play().then(() => setGlobalAudioState('playing')).catch(() => stopGlobalAudio());
     }, { once: true });
+
+    // Use options parameters directly instead of state variables
+    const autoAdvance = !!options.autoAdvance;
+    const ayahPlaylist = Array.isArray(options.ayahPlaylist) ? options.ayahPlaylist : null;
+
     audio.onended = () => {
-      if (globalAutoAdvance && Array.isArray(globalAyahPlaylist) && globalAyahPlaylist.length > 0 && ayahNum) {
-        const idx = globalAyahPlaylist.findIndex(item => item.ayahNumber === ayahNum);
-        const next = idx >= 0 ? globalAyahPlaylist[idx + 1] : null;
+      // Use the local autoAdvance and ayahPlaylist from options, not state
+      if (autoAdvance && Array.isArray(ayahPlaylist) && ayahPlaylist.length > 0 && ayahNum) {
+        const idx = ayahPlaylist.findIndex(item => item.ayahNumber === ayahNum);
+        const next = idx >= 0 ? ayahPlaylist[idx + 1] : null;
         if (next?.url) {
-          playGlobalAudio(next.url, surahInfo, mode, next.ayahNumber, { ayahPlaylist: globalAyahPlaylist, autoAdvance: true });
+          playGlobalAudio(next.url, surahInfo, mode, next.ayahNumber, { ayahPlaylist: ayahPlaylist, autoAdvance: true });
           return;
         }
       }
@@ -4160,7 +4379,7 @@ function AppShell({ tab, setTab }) {
     };
     audio.onerror = () => stopGlobalAudio();
     audio.load();
-  }, [globalVolume, globalPlaybackRate, globalAutoAdvance, globalAyahPlaylist, stopGlobalAudio]);
+  }, [globalVolume, globalPlaybackRate, stopGlobalAudio]);
 
   const toggleGlobalPlay = useCallback(() => {
     if (!audioRef.current) return;
@@ -4180,8 +4399,102 @@ function AppShell({ tab, setTab }) {
     audioRef.current.currentTime = pct * globalDuration;
   }, [globalDuration]);
 
+  const playSurahTrackByNumber = useCallback(async (surahNumber) => {
+    if (!surahNumber || surahNumber < 1 || surahNumber > 114) return;
+
+    const reciterObj = globalReciters.find(r => r.id === globalReciter);
+    const baseSurahInfo = {
+      number: surahNumber,
+      name: `Surah ${surahNumber}`,
+      totalAyahs: null,
+    };
+
+    try {
+      const chaptersRes = await fetch(`${API_BASE}/api/chapters`);
+      if (chaptersRes.ok) {
+        const chaptersData = await chaptersRes.json();
+        const chapter = (chaptersData?.chapters || []).find(c => Number(c.id) === surahNumber);
+        if (chapter) {
+          baseSurahInfo.name = chapter.name_simple || baseSurahInfo.name;
+          baseSurahInfo.totalAyahs = chapter.verses_count || null;
+        }
+      }
+    } catch {
+      // Best-effort metadata only.
+    }
+
+    if (reciterObj?.source === 'mp3quran') {
+      if (!reciterObj.server) return;
+      const url = `${reciterObj.server}${String(surahNumber).padStart(3, '0')}.mp3`;
+      playGlobalAudio(url, baseSurahInfo, 'surah', null, { ayahPlaylist: null, autoAdvance: false });
+      return;
+    }
+
+    try {
+      const verseRes = await fetch(`${API_BASE}/api/audio/verse/${globalReciter}/${surahNumber}`);
+      if (verseRes.ok) {
+        const verseData = await verseRes.json();
+        const files = verseData?.audio_files;
+        if (Array.isArray(files) && files.length > 0) {
+          const ayahPlaylist = files
+            .map(f => {
+              const ayahPart = String(f?.verse_key || '').split(':')[1];
+              const ayahNumber = Number(ayahPart);
+              if (!ayahNumber || !f?.url) return null;
+              const itemUrl = f.url.startsWith('http') ? f.url : `https://audio.qurancdn.com/${f.url}`;
+              return { ayahNumber, url: itemUrl };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.ayahNumber - b.ayahNumber);
+
+          const first = ayahPlaylist[0];
+          if (first?.url) {
+            playGlobalAudio(first.url, baseSurahInfo, 'surah', first.ayahNumber, { ayahPlaylist, autoAdvance: true });
+            return;
+          }
+        }
+      }
+    } catch {
+      // Fall through to chapter audio.
+    }
+
+    try {
+      const chapterRes = await fetch(`${API_BASE}/api/audio/chapter/${globalReciter}/${surahNumber}`);
+      if (!chapterRes.ok) return;
+      const chapterData = await chapterRes.json();
+      const audioFile = chapterData?.audio_file;
+      if (!audioFile?.audio_url) return;
+      const url = audioFile.audio_url.startsWith('http')
+        ? audioFile.audio_url
+        : `https://audio.qurancdn.com/${audioFile.audio_url}`;
+      playGlobalAudio(url, baseSurahInfo, 'surah', null, { ayahPlaylist: null, autoAdvance: false });
+    } catch {
+      // Keep current playback state on failures.
+    }
+  }, [globalReciters, globalReciter, playGlobalAudio]);
+
   const stepGlobalAyah = useCallback(async (delta) => {
     if (!globalSurahInfo?.number) return;
+    if (globalAudioMode === 'surah') {
+      if (Array.isArray(globalAyahPlaylist) && globalAyahPlaylist.length > 0 && Number(globalAyahNum)) {
+        const idx = globalAyahPlaylist.findIndex(item => item.ayahNumber === globalAyahNum);
+        const targetIndex = idx + delta;
+        const within = globalAyahPlaylist[targetIndex];
+        if (within?.url) {
+          playGlobalAudio(within.url, globalSurahInfo, 'surah', within.ayahNumber, {
+            ayahPlaylist: globalAyahPlaylist,
+            autoAdvance: globalAutoAdvance,
+          });
+          return;
+        }
+      }
+
+      const targetSurah = Number(globalSurahInfo.number) + delta;
+      if (targetSurah < 1 || targetSurah > 114) return;
+      await playSurahTrackByNumber(targetSurah);
+      return;
+    }
+
     if (Array.isArray(globalAyahPlaylist) && globalAyahPlaylist.length > 0) {
       const idx = globalAyahPlaylist.findIndex(item => item.ayahNumber === globalAyahNum);
       const baseIndex = idx >= 0 ? idx : (delta > 0 ? 0 : 1);
@@ -4217,7 +4530,7 @@ function AppShell({ tab, setTab }) {
     } catch {
       // Ignore fetch/navigation failures and keep current playback state.
     }
-  }, [globalAudioMode, globalSurahInfo, globalAyahNum, globalAyahPlaylist, globalReciter, globalAutoAdvance, playGlobalAudio]);
+  }, [globalAudioMode, globalSurahInfo, globalAyahNum, globalAyahPlaylist, globalReciter, globalAutoAdvance, playGlobalAudio, playSurahTrackByNumber]);
 
   const globalAudioControls = {
     audioRef, audioState: globalAudioState, audioMode: globalAudioMode,
@@ -4236,14 +4549,14 @@ function AppShell({ tab, setTab }) {
   const hasPlaylist = Array.isArray(globalAyahPlaylist) && globalAyahPlaylist.length > 0;
   const playlistIndex = hasPlaylist ? globalAyahPlaylist.findIndex(item => item.ayahNumber === globalAyahNum) : -1;
   const canPrevAyah = hasSurahContext && (
-    (hasPlaylist && playlistIndex > 0) ||
-    (globalAudioMode === 'ayah' && Number(globalAyahNum) > ayahMin) ||
-    (globalAudioMode === 'surah')
+    (globalAudioMode === 'surah' && Number(globalSurahInfo?.number) > 1) ||
+    (globalAudioMode === 'ayah' && hasPlaylist && playlistIndex > 0) ||
+    (globalAudioMode === 'ayah' && !hasPlaylist && Number(globalAyahNum) > ayahMin)
   );
   const canNextAyah = hasSurahContext && (
-    (hasPlaylist && playlistIndex >= 0 && playlistIndex < globalAyahPlaylist.length - 1) ||
-    (globalAudioMode === 'ayah' && (!ayahMax || Number(globalAyahNum) < ayahMax)) ||
-    (globalAudioMode === 'surah')
+    (globalAudioMode === 'surah' && Number(globalSurahInfo?.number) < 114) ||
+    (globalAudioMode === 'ayah' && hasPlaylist && playlistIndex >= 0 && playlistIndex < globalAyahPlaylist.length - 1) ||
+    (globalAudioMode === 'ayah' && !hasPlaylist && (!ayahMax || Number(globalAyahNum) < ayahMax))
   );
 
   // ── Global search overlay ──
@@ -4342,6 +4655,12 @@ function AppShell({ tab, setTab }) {
     }
   }
 
+  const isLightMode = settings.theme === 'light';
+  const toggleThemeMode = () => {
+    updateSetting('customAccent', '');
+    updateSetting('theme', isLightMode ? 'dark-navy' : 'light');
+  };
+
   return (
     <div
       className={`app theme-${settings.theme} ${showPlayer ? 'has-player' : ''}`}
@@ -4366,8 +4685,31 @@ function AppShell({ tab, setTab }) {
           </div>
         </div>
 
+        <nav className="top-nav" role="navigation" aria-label="Main navigation">
+          <button className={tab === "home" ? "active" : ""} onClick={() => handleNavigate("home")} aria-current={tab === "home" ? "page" : undefined} title="Home">
+            <IconHome /><span>Home</span>
+          </button>
+          <button className={tab === "quran" ? "active" : ""} onClick={() => handleNavigate("quran")} aria-current={tab === "quran" ? "page" : undefined} title="Quran">
+            <IconQuran /><span>Quran</span>
+          </button>
+          <button className={tab === "salah" ? "active" : ""} onClick={() => handleNavigate("salah")} aria-current={tab === "salah" ? "page" : undefined} title="Salah">
+            <IconPrayer /><span>Salah</span>
+          </button>
+          <button className={tab === "explore" ? "active" : ""} onClick={() => handleNavigate("explore")} aria-current={tab === "explore" ? "page" : undefined} title="Explore">
+            <IconExplore /><span>Explore</span>
+          </button>
+        </nav>
+
         <div className="app-chrome-group app-chrome-group-right" aria-label="Account and settings">
           <UserBadge />
+          <button
+            className="global-settings-btn theme-toggle-btn"
+            onClick={toggleThemeMode}
+            title={isLightMode ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+            aria-label={isLightMode ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+          >
+            {isLightMode ? <IconMoon /> : <IconSun />}
+          </button>
           <button className="global-settings-btn" onClick={() => setShowSettings(true)} title="Settings">
             <IconGear />
           </button>
@@ -4377,7 +4719,7 @@ function AppShell({ tab, setTab }) {
       {showSettings && <SettingsPanel />}
       {showSearch && <QuranSearch onNavigate={handleSearchNavigate} onClose={() => setShowSearch(false)} />}
 
-      <div className="content">
+      <div className={`content ${transitionClass}`}>
         {tab === "home" && <Home onNavigate={handleNavigate} />}
         {tab === "quran" && <Quran key={pendingSurah} audioControls={globalAudioControls} onOpenSearch={() => setShowSearch(true)} />}
         {tab === "salah" && <Salah />}
@@ -4416,21 +4758,6 @@ function AppShell({ tab, setTab }) {
           onClose={stopGlobalAudio}
         />
       )}
-
-      <nav className="nav" role="navigation" aria-label="Main navigation">
-        <button className={tab === "home" ? "active" : ""} onClick={() => handleNavigate("home")} aria-current={tab === "home" ? "page" : undefined}>
-          <IconHome /><span>Home</span>
-        </button>
-        <button className={tab === "quran" ? "active" : ""} onClick={() => handleNavigate("quran")} aria-current={tab === "quran" ? "page" : undefined}>
-          <IconQuran /><span>Quran</span>
-        </button>
-        <button className={tab === "salah" ? "active" : ""} onClick={() => handleNavigate("salah")} aria-current={tab === "salah" ? "page" : undefined}>
-          <IconPrayer /><span>Salah</span>
-        </button>
-        <button className={tab === "explore" ? "active" : ""} onClick={() => handleNavigate("explore")} aria-current={tab === "explore" ? "page" : undefined}>
-          <IconExplore /><span>Explore</span>
-        </button>
-      </nav>
     </div>
   );
 }
@@ -4751,3 +5078,4 @@ export default function App() {
     </AuthGate>
   );
 }
+

@@ -1,0 +1,463 @@
+/* ═══════════════════════════════════════════════════════════
+   ADVANCED SEARCH ANIMATIONS & INTERACTIONS
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── Slide Up Animation for Results ─── */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── Stagger Animation for Result Items ─── */
+@keyframes slideInItem {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ─── Loading Spinner ─── */
+@keyframes spinnerRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(93, 157, 148, 0.7); }
+  50% { box-shadow: 0 0 0 8px rgba(93, 157, 148, 0); }
+}
+
+/* ─── Icon Animations ─── */
+@keyframes floatSmall {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes rotateIcon {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Search Bar Focus Glow ─── */
+@keyframes focusGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(93, 157, 148, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(93, 157, 148, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(93, 157, 148, 0);
+  }
+}
+
+/* ─── Result Highlight Flash ─── */
+@keyframes highlightFlash {
+  0% {
+    background: rgba(93, 157, 148, 0.6);
+  }
+  100% {
+    background: rgba(93, 157, 148, 0.2);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   STAGGERED RESULTS ANIMATION
+   ═══════════════════════════════════════════════════════════ */
+
+.explore-search-item {
+  animation: slideInItem 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+.explore-search-item:nth-child(1) { animation-delay: 0ms; }
+.explore-search-item:nth-child(2) { animation-delay: 30ms; }
+.explore-search-item:nth-child(3) { animation-delay: 60ms; }
+.explore-search-item:nth-child(4) { animation-delay: 90ms; }
+.explore-search-item:nth-child(5) { animation-delay: 120ms; }
+.explore-search-item:nth-child(n+6) { animation-delay: 150ms; }
+
+.qsearch-result {
+  animation: slideInItem 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+.qsearch-result:nth-child(1) { animation-delay: 0ms; }
+.qsearch-result:nth-child(2) { animation-delay: 30ms; }
+.qsearch-result:nth-child(3) { animation-delay: 60ms; }
+.qsearch-result:nth-child(4) { animation-delay: 90ms; }
+.qsearch-result:nth-child(5) { animation-delay: 120ms; }
+.qsearch-result:nth-child(n+6) { animation-delay: 150ms; }
+
+/* ═══════════════════════════════════════════════════════════
+   SMOOTH TRANSITIONS FOR MODALS
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes backdropFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.qsearch-modal {
+  animation: modalSlideIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.qsearch-overlay {
+  animation: backdropFadeIn 0.25s ease-out;
+}
+
+.salah-modal {
+  animation: modalSlideIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HOVER INTERACTION ENHANCEMENTS
+   ═══════════════════════════════════════════════════════════ */
+
+/* Badge Pop Effect */
+@keyframes badgePop {
+  0% { transform: scale(0.8); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.explore-search-item-badge,
+.qsearch-result-badge {
+  will-change: transform;
+}
+
+/* ─── Smooth Highlight Transition ─── */
+.qsearch-result:hover .qsearch-mark {
+  animation: highlightFlash 0.3s ease-out;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SEARCH INPUT FOCUS STATES
+   ═══════════════════════════════════════════════════════════ */
+
+/* Glow effect on focus */
+.explore-search-input:focus {
+  box-shadow: 0 0 0 3px rgba(93, 157, 148, 0.1),
+              inset 0 1px 2px rgba(93, 157, 148, 0.05);
+}
+
+.qsearch-input:focus {
+  box-shadow: 0 0 0 3px rgba(93, 157, 148, 0.12),
+              inset 0 1px 2px rgba(93, 157, 148, 0.08);
+}
+
+.salah-modal-input:focus {
+  box-shadow: 0 0 0 3px rgba(93, 157, 148, 0.1),
+              inset 0 1px 2px rgba(93, 157, 148, 0.05);
+}
+
+.reciter-picker-search-input:focus {
+  box-shadow: 0 0 0 3px rgba(93, 157, 148, 0.1),
+              inset 0 1px 2px rgba(93, 157, 148, 0.05);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CLEAR BUTTON ANIMATION
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes clearPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.92); }
+}
+
+.explore-search-clear:active {
+  animation: clearPulse 0.3s ease-out;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SCROLLABLE RESULTS STYLING
+   ═══════════════════════════════════════════════════════════ */
+
+.explore-search-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.explore-search-list::-webkit-scrollbar-track {
+  background: linear-gradient(180deg, 
+    rgba(93, 157, 148, 0.05), 
+    transparent);
+  border-radius: 4px;
+}
+
+.explore-search-list::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, 
+    rgba(93, 157, 148, 0.4), 
+    rgba(93, 157, 148, 0.25));
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.explore-search-list::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, 
+    rgba(93, 157, 148, 0.6), 
+    rgba(93, 157, 148, 0.4));
+  background-clip: padding-box;
+}
+
+.qsearch-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.qsearch-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.qsearch-body::-webkit-scrollbar-thumb {
+  background: rgba(93, 157, 148, 0.3);
+  border-radius: 4px;
+}
+
+.qsearch-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(93, 157, 148, 0.5);
+}
+
+.salah-modal-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.salah-modal-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.salah-modal-list::-webkit-scrollbar-thumb {
+  background: rgba(93, 157, 148, 0.3);
+  border-radius: 4px;
+}
+
+.salah-modal-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(93, 157, 148, 0.5);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   VIBRANT BADGE COLORS
+   ═══════════════════════════════════════════════════════════ */
+
+/* Surah Badge */
+.explore-search-item-badge.surah {
+  background: linear-gradient(135deg, 
+    rgba(93, 157, 148, 0.95), 
+    rgba(93, 157, 148, 0.75));
+  color: #fff;
+}
+
+/* Topic Badge */
+.explore-search-item-badge.topic {
+  background: linear-gradient(135deg, 
+    rgba(100, 140, 200, 0.85), 
+    rgba(80, 120, 180, 0.7));
+  color: #fff;
+}
+
+/* Verse Badge */
+.explore-search-item-badge.verse {
+  background: linear-gradient(135deg, 
+    rgba(120, 160, 220, 0.9), 
+    rgba(100, 140, 200, 0.75));
+  color: #fff;
+}
+
+/* Hadith Badge */
+.explore-search-item-badge.hadith {
+  background: linear-gradient(135deg, 
+    rgba(150, 100, 200, 0.85), 
+    rgba(130, 80, 180, 0.7));
+  color: #fff;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TEXT INPUT ANIMATION
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes inputShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+/* Shake on invalid input (optional) */
+.search-input.error {
+  animation: inputShake 0.3s ease-out;
+  border-color: rgba(220, 100, 100, 0.5);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ACCESSIBILITY: FOCUS VISIBLE
+   ═══════════════════════════════════════════════════════════ */
+
+.explore-search-item:focus-visible,
+.qsearch-result:focus-visible,
+.salah-modal-city:focus-visible,
+.reciter-picker-option:focus-visible {
+  outline: 2px solid rgba(93, 157, 148, 0.6);
+  outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE OPTIMIZATIONS
+   ═══════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .explore-search-results {
+    max-height: 60vh;
+  }
+
+  .qsearch-modal {
+    max-height: 85vh;
+  }
+
+  .salah-modal {
+    max-height: 85vh;
+  }
+
+  .reciter-picker-dropdown {
+    max-height: 70vh;
+  }
+
+  /* Larger touch targets on mobile */
+  .explore-search-item,
+  .qsearch-result,
+  .salah-modal-city,
+  .reciter-picker-option {
+    padding: 16px 14px;
+  }
+
+  /* Simplified animations on mobile for better performance */
+  .explore-search-item,
+  .qsearch-result {
+    animation: slideInItem 0.3s ease-out backwards !important;
+  }
+
+  .explore-search-item:nth-child(n+1) {
+    animation-delay: 0ms !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   REDUCED MOTION - KEEP ACCESSIBLE
+   ═══════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .explore-search-item,
+  .qsearch-result,
+  .explore-search-results,
+  .qsearch-modal,
+  .salah-modal,
+  .reciter-picker-dropdown {
+    animation: none !important;
+  }
+
+  .explore-search-item,
+  .qsearch-result {
+    animation-delay: unset !important;
+  }
+
+  .explore-search-item:hover,
+  .qsearch-result:hover,
+  .salah-modal-city:hover,
+  .reciter-picker-option:hover,
+  .explore-search-bar:focus-within,
+  .qsearch-input:focus {
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .explore-search-item-badge:hover,
+  .qsearch-result-badge:hover {
+    transform: none !important;
+  }
+
+  .explore-search-clear:hover {
+    transform: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   GLASS EFFECT REFINEMENT
+   ═══════════════════════════════════════════════════════════ */
+
+.explore-search-bar,
+.qsearch-modal,
+.salah-modal,
+.reciter-picker-dropdown {
+  /* Enhanced glass effect support */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DARK MODE COMPATIBILITY
+   ═══════════════════════════════════════════════════════════ */
+
+@supports (color: hsl(0deg 0% 0% / 1)) {
+  .explore-search-results,
+  .qsearch-modal,
+  .salah-modal,
+  .reciter-picker-dropdown {
+    background-color: hsl(220deg 20% 13% / 0.95);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LOADING STATE REFINEMENT
+   ═══════════════════════════════════════════════════════════ */
+
+.search-loading-skeleton {
+  background: linear-gradient(90deg,
+    rgba(93, 157, 148, 0.1) 0%,
+    rgba(93, 157, 148, 0.2) 50%,
+    rgba(93, 157, 148, 0.1) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HIGH CONTRAST MODE
+   ═══════════════════════════════════════════════════════════ */
+
+@media (prefers-contrast: more) {
+  .explore-search-bar {
+    border-width: 2px;
+  }
+
+  .explore-search-item:hover,
+  .qsearch-result:hover,
+  .salah-modal-city:hover,
+  .reciter-picker-option:hover {
+    border-width: 2px;
+  }
+
+  .explore-search-item-badge,
+  .qsearch-result-badge {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+}
