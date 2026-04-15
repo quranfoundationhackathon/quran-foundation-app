@@ -2325,6 +2325,10 @@ button, a, .home-card, .surah-item, .ayah-card, .theme-option,
   min-width: 0;
 }
 
+.home-grid-section--full {
+  grid-column: 1 / -1;
+}
+
 /* Quick Access Grid - 4 items in a row, each 3 columns */
 .home-quick-access {
   grid-column: 1 / -1;
@@ -5726,7 +5730,7 @@ button, a, .home-card, .surah-item, .ayah-card, .theme-option,
   .app-chrome-group-left {
     grid-area: left;
     min-width: 0;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .app-chrome-group-right {
@@ -5759,8 +5763,11 @@ button, a, .home-card, .surah-item, .ayah-card, .theme-option,
 
   .app-corner-logo {
     height: 40px;
+    width: auto;
+    min-width: 0;
     padding: 0 10px 0 6px;
     border-radius: 14px;
+    flex-shrink: 0;
   }
 
   .app-corner-logo-img {
@@ -5769,7 +5776,7 @@ button, a, .home-card, .surah-item, .ayah-card, .theme-option,
   }
 
   .app-corner-wordmark {
-    font-size: 0.9rem;
+    font-size: 0.78rem;
   }
 
   .nav-history-btns {
@@ -5812,13 +5819,15 @@ button, a, .home-card, .surah-item, .ayah-card, .theme-option,
 
 @media (max-width: 430px) {
   .app-corner-wordmark {
-    display: none;
+    display: inline-flex;
+    font-size: 0.68rem;
+    letter-spacing: -0.03em;
   }
 
   .app-corner-logo {
-    width: 40px;
-    padding: 0;
-    justify-content: center;
+    width: auto;
+    padding: 0 8px 0 4px;
+    justify-content: flex-start;
   }
 
   .top-nav button span {

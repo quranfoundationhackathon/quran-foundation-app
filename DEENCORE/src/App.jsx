@@ -1419,7 +1419,10 @@ function Home({ onNavigate }) {
       )}
 
       {nextPrayerPreview && (
-        <div className="home-section-card home-grid-section" onClick={() => onNavigate?.('salah')}>
+        <div
+          className={`home-section-card home-grid-section ${lastRead ? '' : 'home-grid-section--full'}`}
+          onClick={() => onNavigate?.('salah')}
+        >
           <div className="home-section-header">
             <span className="home-section-icon"><IconPrayer /></span>
             <h4 className="home-section-title">Next Prayer</h4>
@@ -2142,6 +2145,7 @@ function Quran({ audioControls, onOpenSearch }) {
   const visibleAyahRef = useRef(1);
   const [activeAyahKey, setActiveAyahKey] = useState('');
   const ayahPanelRef = useRef(null);
+  const surahListRef = useRef(null);
   const readerRef = useRef(null);
   const [wbwTooltip, setWbwTooltip] = useState(null); // { x, y, translit, meaning }
 
@@ -2557,6 +2561,27 @@ function Quran({ audioControls, onOpenSearch }) {
   const sidebarPlaceholder = viewBy === 'surah' ? 'Search surah or #' : viewBy === 'juz' ? 'Search juz or # (e.g. 2, 20)' : 'Search hizb or # (e.g. 2, 20)';
   const sidebarTitle = viewBy === 'surah' ? 'Surahs' : viewBy === 'juz' ? 'Juzs' : 'Hizbs';
 
+  useEffect(() => {
+    if (viewBy !== 'surah' || !surahListRef.current || showBookmarks) return;
+    if (typeof window !== 'undefined' && window.innerWidth > 900) return;
+
+    const list = surahListRef.current;
+    const activeItem = list.querySelector('.surah-item.active');
+    if (!activeItem) return;
+
+    const itemTop = activeItem.offsetTop;
+    const itemBottom = itemTop + activeItem.offsetHeight;
+    const visibleTop = list.scrollTop;
+    const visibleBottom = visibleTop + list.clientHeight;
+
+    if (itemTop < visibleTop || itemBottom > visibleBottom) {
+      list.scrollTo({
+        top: Math.max(0, itemTop - (list.clientHeight / 2) + (activeItem.offsetHeight / 2)),
+        behavior: 'smooth',
+      });
+    }
+  }, [viewBy, selectedSidebarId, filteredSidebarItems.length, showBookmarks]);
+
   return (
     <>
     <div className={`quran-screen layout-${settings.layoutMode}`}>
@@ -2604,7 +2629,7 @@ function Quran({ audioControls, onOpenSearch }) {
                   onChange={e => setSurahSearch(e.target.value)}
                 />
               </div>
-              <div className={`surah-list ${sidebarRefreshing ? 'list-refreshing' : ''}`}>
+              <div className={`surah-list ${sidebarRefreshing ? 'list-refreshing' : ''}`} ref={surahListRef}>
                 {loadingSurahs || loadingGroupedList ? (
                   <div className="skeleton-list">
                     {[...Array(10)].map((_, i) => <div key={i} className="skeleton-item" />)}
