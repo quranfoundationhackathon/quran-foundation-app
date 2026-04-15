@@ -377,7 +377,13 @@ const buildCustomThemeStyle = (customAccent) => {
     '--accent-hover': rgbCss(accentHover),
     '--border': rgbaCss(tuneColorForContrast(mixRgb(accentColor, bgPrimary, 0.28), bgPrimary, 2.2), 0.42),
     '--border-hover': rgbaCss(tuneColorForContrast(mixRgb(accentColor, bgPrimary, 0.18), bgPrimary, 2.4), 0.62),
-    '--nav-bg': rgbaCss(isLightAccent ? mixRgb(accent, { r: 255, g: 255, b: 255 }, 0.9) : mixRgb(accent, { r: 0, g: 0, b: 0 }, 0.9), 0.94),
+    '--nav-bg': isLightAccent ? 'rgba(255, 255, 255, 0.94)' : rgbaCss(mixRgb(accent, { r: 0, g: 0, b: 0 }, 0.9), 0.94),
+    '--nav-border': rgbaCss(tuneColorForContrast(mixRgb(accentColor, bgPrimary, 0.22), bgPrimary, 2.3), isLightAccent ? 0.24 : 0.2),
+    '--chrome-control-bg': isLightAccent ? 'rgba(255, 255, 255, 0.94)' : rgbaCss(bgSecondary, 0.58),
+    '--chrome-control-border': rgbaCss(tuneColorForContrast(mixRgb(accentColor, bgPrimary, 0.2), bgPrimary, 2.2), isLightAccent ? 0.32 : 0.35),
+    '--chrome-control-shadow': isLightAccent
+      ? '0 6px 20px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.92)'
+      : '0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12)',
     '--bg-gradient-end': rgbCss(isLightAccent ? mixRgb(accent, { r: 255, g: 255, b: 255 }, 0.78) : mixRgb(accent, { r: 0, g: 0, b: 0 }, 0.78)),
     '--shadow-card': isLightAccent ? '0 8px 24px rgba(0, 0, 0, 0.1)' : '0 8px 32px rgba(0, 0, 0, 0.3)',
     '--shadow-hover': isLightAccent ? '0 12px 32px rgba(0, 0, 0, 0.16)' : '0 16px 48px rgba(0, 0, 0, 0.38)',
