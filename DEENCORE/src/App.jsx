@@ -269,6 +269,126 @@ const normalizeNumber = (value, fallback) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
+const normalizeHexColor = (value) => {
+  if (typeof value !== 'string') return '';
+  const cleaned = value.trim().replace(/^#/, '').toUpperCase();
+  if (!/^[0-9A-F]{6}$/.test(cleaned)) return '';
+  return `#${cleaned}`;
+};
+
+const hexToRgb = (hex) => {
+  const normalized = normalizeHexColor(hex);
+  if (!normalized) return null;
+  const v = normalized.slice(1);
+  return {
+    r: parseInt(v.slice(0, 2), 16),
+    g: parseInt(v.slice(2, 4), 16),
+    b: parseInt(v.slice(4, 6), 16),
+  };
+};
+
+const rgbCss = ({ r, g, b }) => `rgb(${r}, ${g}, ${b})`;
+const rgbaCss = ({ r, g, b }, a) => `rgba(${r}, ${g}, ${b}, ${a})`;
+const clampRgb = ({ r, g, b }) => ({
+  r: Math.max(0, Math.min(255, Math.round(r))),
+  g: Math.max(0, Math.min(255, Math.round(g))),
+  b: Math.max(0, Math.min(255, Math.round(b))),
+});
+
+const mixRgb = (a, b, t) => clampRgb({
+  r: a.r + (b.r - a.r) * t,
+  g: a.g + (b.g - a.g) * t,
+  b: a.b + (b.b - a.b) * t,
+});
+
+const srgbToLinear = (v) => {
+  const s = v / 255;
+  return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+};
+
+const luminance = (rgb) => {
+  const r = srgbToLinear(rgb.r);
+  const g = srgbToLinear(rgb.g);
+  const b = srgbToLinear(rgb.b);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+
+const contrastRatio = (c1, c2) => {
+  const l1 = luminance(c1);
+  const l2 = luminance(c2);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+};
+
+const tuneColorForContrast = (base, background, minContrast = 4.5) => {
+  const white = { r: 255, g: 255, b: 255 };
+  const black = { r: 0, g: 0, b: 0 };
+  if (contrastRatio(base, background) >= minContrast) return base;
+
+  const towardWhite = contrastRatio(white, background) > contrastRatio(black, background);
+  const target = towardWhite ? white : black;
+
+  for (let i = 0; i <= 20; i++) {
+    const t = i / 20;
+    const candidate = mixRgb(base, target, t);
+    if (contrastRatio(candidate, background) >= minContrast) {
+      return candidate;
+    }
+  }
+
+  return target;
+};
+
+const buildCustomThemeStyle = (customAccent) => {
+  const accent = hexToRgb(customAccent);
+  if (!accent) return null;
+
+  const perceivedBrightness = (accent.r * 299 + accent.g * 587 + accent.b * 114) / 1000;
+  const isLightAccent = perceivedBrightness > 140;
+
+  const bgPrimary = isLightAccent ? mixRgb(accent, { r: 255, g: 255, b: 255 }, 0.92) : mixRgb(accent, { r: 0, g: 0, b: 0 }, 0.88);
+  const bgSecondary = isLightAccent ? mixRgb(accent, { r: 255, g: 255, b: 255 }, 0.85) : mixRgb(accent, { r: 0, g: 0, b: 0 }, 0.78);
+  const bgTertiary = isLightAccent ? mixRgb(accent, { r: 255, g: 255, b: 255 }, 0.95) : mixRgb(accent, { r: 0, g: 0, b: 0 }, 0.72);
+
+  const idealPrimary = contrastRatio({ r: 255, g: 255, b: 255 }, bgPrimary) >= contrastRatio({ r: 0, g: 0, b: 0 }, bgPrimary)
+    ? { r: 255, g: 255, b: 255 }
+    : { r: 0, g: 0, b: 0 };
+
+  const textPrimary = tuneColorForContrast(idealPrimary, bgPrimary, 7);
+  const textSecondaryBase = mixRgb(textPrimary, bgPrimary, 0.2);
+  const textSecondary = tuneColorForContrast(textSecondaryBase, bgPrimary, 5);
+
+  const accentColor = tuneColorForContrast(accent, bgPrimary, 3.2);
+  const accentHover = tuneColorForContrast(
+    mixRgb(accentColor, idealPrimary, idealPrimary.r === 255 ? 0.18 : 0.25),
+    bgPrimary,
+    3.2,
+  );
+
+  return {
+    '--bg-primary': rgbCss(bgPrimary),
+    '--bg-secondary': rgbaCss(bgSecondary, isLightAccent ? 0.88 : 0.7),
+    '--bg-tertiary': rgbaCss(bgTertiary, isLightAccent ? 0.95 : 0.62),
+    '--bg-hover': rgbaCss(tuneColorForContrast(accent, bgPrimary, 3), 0.14),
+    '--text-primary': rgbCss(textPrimary),
+    '--text-secondary': rgbCss(textSecondary),
+    '--accent': rgbCss(accentColor),
+    '--accent-hover': rgbCss(accentHover),
+    '--border': rgbaCss(tuneColorForContrast(mixRgb(accentColor, bgPrimary, 0.28), bgPrimary, 2.2), 0.42),
+    '--border-hover': rgbaCss(tuneColorForContrast(mixRgb(accentColor, bgPrimary, 0.18), bgPrimary, 2.4), 0.62),
+    '--nav-bg': rgbaCss(isLightAccent ? mixRgb(accent, { r: 255, g: 255, b: 255 }, 0.9) : mixRgb(accent, { r: 0, g: 0, b: 0 }, 0.9), 0.94),
+    '--bg-gradient-end': rgbCss(isLightAccent ? mixRgb(accent, { r: 255, g: 255, b: 255 }, 0.78) : mixRgb(accent, { r: 0, g: 0, b: 0 }, 0.78)),
+    '--shadow-card': isLightAccent ? '0 8px 24px rgba(0, 0, 0, 0.1)' : '0 8px 32px rgba(0, 0, 0, 0.3)',
+    '--shadow-hover': isLightAccent ? '0 12px 32px rgba(0, 0, 0, 0.16)' : '0 16px 48px rgba(0, 0, 0, 0.38)',
+  };
+};
+
+const CUSTOM_THEME_SWATCHES = [
+  '#2F8FFF', '#00B894', '#12B76A', '#F59E0B', '#EF4444', '#E11D48',
+  '#7C3AED', '#2563EB', '#0D9488', '#A16207', '#4F46E5', '#475569',
+];
+
 const normalizeSettings = (raw = {}) => {
   const merged = { ...defaultSettings, ...(raw || {}) };
 
@@ -289,7 +409,7 @@ const normalizeSettings = (raw = {}) => {
     showAyahBadges: typeof merged.showAyahBadges === 'boolean' ? merged.showAyahBadges : defaultSettings.showAyahBadges,
     wordByWord: typeof merged.wordByWord === 'boolean' ? merged.wordByWord : defaultSettings.wordByWord,
     tajweedMode: typeof merged.tajweedMode === 'boolean' ? merged.tajweedMode : defaultSettings.tajweedMode,
-    customAccent: typeof merged.customAccent === 'string' ? merged.customAccent : defaultSettings.customAccent,
+    customAccent: normalizeHexColor(merged.customAccent) || defaultSettings.customAccent,
   };
 };
 
@@ -867,6 +987,18 @@ const DAILY_REFLECTIONS = [
 function SettingsPanel() {
   const { settings, updateSetting, resetSection, setShowSettings } = useSettings();
   const [availableTranslations, setAvailableTranslations] = useState([]);
+  const [customHexInput, setCustomHexInput] = useState(settings.customAccent || '');
+
+  useEffect(() => {
+    setCustomHexInput(settings.customAccent || '');
+  }, [settings.customAccent]);
+
+  const applyCustomAccent = (value) => {
+    const normalized = normalizeHexColor(value);
+    if (!normalized) return false;
+    updateSetting('customAccent', normalized);
+    return true;
+  };
 
   useEffect(() => {
     fetch(`${API_BASE}/api/translations`)
@@ -995,6 +1127,83 @@ function SettingsPanel() {
               </div>
             </div>
             <button className="section-reset-btn" onClick={() => resetSection(['showTranslation','showAyahBadges','wordByWord','tajweedMode','viewMode','translationId'])}>↺ Reset Reader</button>
+          </div>
+
+          {/* Custom Theme */}
+          <div className="settings-section custom-theme-section">
+            <h4 className="settings-section-title">Custom Theme</h4>
+            <p className="settings-section-subtitle">Text contrast is auto-adjusted for readability</p>
+
+            <div className="custom-color-grid">
+              {CUSTOM_THEME_SWATCHES.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  className={`custom-color-swatch ${settings.customAccent === color ? 'active' : ''}`}
+                  style={{ background: color }}
+                  onClick={() => {
+                    setCustomHexInput(color);
+                    updateSetting('customAccent', color);
+                  }}
+                  title={`Use ${color}`}
+                  aria-label={`Use custom theme color ${color}`}
+                />
+              ))}
+            </div>
+
+            <div className="settings-control">
+              <label htmlFor="custom-theme-color">Pick Custom Theme Color</label>
+              <input
+                id="custom-theme-color"
+                type="color"
+                value={normalizeHexColor(settings.customAccent) || '#2F8FFF'}
+                onChange={(e) => {
+                  const value = normalizeHexColor(e.target.value);
+                  setCustomHexInput(value);
+                  updateSetting('customAccent', value);
+                }}
+                className="settings-select"
+                style={{ padding: '4px', height: '42px' }}
+              />
+            </div>
+
+            <div className="custom-hex-row">
+              <span className="hex-label">HEX</span>
+              <input
+                className="hex-input"
+                placeholder="#2F8FFF"
+                value={customHexInput}
+                onChange={(e) => setCustomHexInput(e.target.value.toUpperCase())}
+                onBlur={() => {
+                  if (!applyCustomAccent(customHexInput)) {
+                    setCustomHexInput(settings.customAccent || '');
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    if (!applyCustomAccent(customHexInput)) {
+                      setCustomHexInput(settings.customAccent || '');
+                    }
+                  }
+                }}
+                aria-label="Custom theme hex value"
+              />
+              <div
+                className="custom-preview"
+                style={{ background: normalizeHexColor(customHexInput) || normalizeHexColor(settings.customAccent) || '#2F8FFF' }}
+                aria-hidden="true"
+              />
+              <button
+                type="button"
+                className="accent-reset-btn"
+                onClick={() => {
+                  setCustomHexInput('');
+                  updateSetting('customAccent', '');
+                }}
+              >
+                Reset
+              </button>
+            </div>
           </div>
 
         </div>
@@ -1134,13 +1343,15 @@ function Home({ onNavigate }) {
 
       {/* Hero */}
       <div className="home-hero home-grid-hero">
-        <div className="home-bismillah">{'\uFDFD'}</div>
-        <h1 className="home-title" style={{ fontSize: `${2.5 * scale}rem` }}>As-Salamu Alaykum</h1>
-        <p className="home-greeting">{greeting}</p>
-        <div className="home-date-row">
-          {hijriDate && <p className="home-hijri">{hijriDate}</p>}
-          {hijriDate && gregorianDate && <span className="home-date-dot" />}
-          {gregorianDate && <p className="home-gregorian">{gregorianDate}</p>}
+        <div className="home-header-stack">
+          <div className="home-bismillah">{'\uFDFD'}</div>
+          <h1 className="home-title" style={{ fontSize: `${2.15 * scale}rem` }}>As-Salamu Alaykum</h1>
+          <p className="home-greeting">{greeting}</p>
+          <div className="home-date-row">
+            {hijriDate && <p className="home-hijri">{hijriDate}</p>}
+            {hijriDate && gregorianDate && <span className="home-date-dot" />}
+            {gregorianDate && <p className="home-gregorian">{gregorianDate}</p>}
+          </div>
         </div>
       </div>
 
@@ -1480,7 +1691,7 @@ const IconArrowRight = () => (
   </svg>
 );
 
-// ─── Available Reciters — DC reciters as defaults, mp3quran loaded dynamically ─
+// ─── Available Reciters — Quran Foundation defaults ─
 
 const QF_RECITERS = [
   { id: 1, name: 'Abdul Basit (Murattal)', style: 'Murattal', source: 'dc' },
@@ -1503,12 +1714,18 @@ const QF_RECITERS = [
   { id: 175, name: 'Abdullah Hamad Abu Sharida', style: 'Murattal', source: 'dc' },
 ];
 
+const inferReciterStyle = (name = '') => {
+  const n = String(name).toLowerCase();
+  if (n.includes('mujawwad')) return 'Mujawwad';
+  if (n.includes('muallim') || n.includes('kids') || n.includes('child')) return 'Muallim';
+  return 'Murattal';
+};
+
 // ─── Custom Reciter Picker (themed dropdown) ──────────────
 
 function ReciterPicker({ reciters, selected, onChange }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [styleFilter, setStyleFilter] = useState('All');
   const ref = useRef(null);
   const searchRef = useRef(null);
   const current = reciters.find(r => r.id === selected) || reciters[0];
@@ -1526,32 +1743,11 @@ function ReciterPicker({ reciters, selected, onChange }) {
 
   const handleOpen = () => {
     setSearch('');
-    setStyleFilter('All');
     setOpen(!open);
   };
 
-  const qfReciters = reciters.filter(r => r.source === 'dc');
-  const mp3Reciters = reciters.filter(r => r.source === 'mp3quran');
-
-  // Normalize noisy API style labels into a compact set for usable tabs.
-  const getStyleGroup = (style) => {
-    const s = String(style || '').trim().toLowerCase();
-    if (!s) return 'Other';
-    if (s.includes('murattal')) return 'Murattal';
-    if (s.includes('mujawwad')) return 'Mujawwad';
-    if (s.includes('muallim') || s.includes('kids') || s.includes('child')) return 'Muallim';
-    if (s.includes('tajweed') || s.includes('mujwad')) return 'Tajweed';
-    return 'Other';
-  };
-
-  const groupedMp3Reciters = mp3Reciters.map(r => ({ ...r, styleGroup: getStyleGroup(r.style) }));
-  const styleOptions = ['All', ...Array.from(new Set(groupedMp3Reciters.map(r => r.styleGroup)))];
-
   const query = search.toLowerCase().trim();
-  const filteredQf = query ? qfReciters.filter(r => r.name.toLowerCase().includes(query)) : qfReciters;
-  const filteredMp3 = groupedMp3Reciters
-    .filter(r => styleFilter === 'All' || r.styleGroup === styleFilter)
-    .filter(r => !query || r.name.toLowerCase().includes(query));
+  const filteredReciters = query ? reciters.filter(r => r.name.toLowerCase().includes(query)) : reciters;
 
   return (
     <div className="reciter-picker" ref={ref}>
@@ -1571,22 +1767,10 @@ function ReciterPicker({ reciters, selected, onChange }) {
               className="reciter-picker-search-input"
             />
           </div>
-          {/* Style filter tabs */}
-          {mp3Reciters.length > 0 && (
-            <div className="reciter-style-tabs">
-              {styleOptions.map(s => (
-                <button
-                  key={s}
-                  className={`reciter-style-tab ${styleFilter === s ? 'active' : ''}`}
-                  onClick={() => setStyleFilter(s)}
-                >{s}</button>
-              ))}
-            </div>
-          )}
-          {filteredQf.length > 0 && (
+          {filteredReciters.length > 0 && (
             <>
-              <div className="reciter-picker-section">Featured</div>
-              {filteredQf.map(r => (
+              <div className="reciter-picker-section">Reciters ({reciters.length})</div>
+              {filteredReciters.map(r => (
                 <button
                   key={r.id}
                   className={`reciter-picker-option ${r.id === selected ? 'active' : ''}`}
@@ -1598,22 +1782,7 @@ function ReciterPicker({ reciters, selected, onChange }) {
               ))}
             </>
           )}
-          {filteredMp3.length > 0 && (
-            <>
-              <div className="reciter-picker-section">All Reciters ({mp3Reciters.length} total)</div>
-              {filteredMp3.map(r => (
-                <button
-                  key={r.id}
-                  className={`reciter-picker-option ${r.id === selected ? 'active' : ''}`}
-                  onClick={() => { onChange(r.id); setOpen(false); }}
-                >
-                  <span className="reciter-picker-option-name">{r.name}</span>
-                  <span className="reciter-picker-option-style">{r.style}</span>
-                </button>
-              ))}
-            </>
-          )}
-          {filteredQf.length === 0 && filteredMp3.length === 0 && (
+          {filteredReciters.length === 0 && (
             <div className="reciter-picker-empty">No reciters found</div>
           )}
         </div>
@@ -1633,9 +1802,30 @@ function AyahDropdownMenu({ ayah, surahNumber, surahName, anchorRef, onClose, on
   const [tafsirSource, setTafsirSource] = useState(169);
   const [tafsirCache, setTafsirCache] = useState({});
   const [copied, setCopied] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
   const menuRef = useRef(null);
 
   const verseKey = `${surahNumber}:${ayah.numberInSurah}`;
+
+  // Calculate dropdown position relative to anchor button
+  useEffect(() => {
+    const updatePosition = () => {
+      if (anchorRef?.current) {
+        const rect = anchorRef.current.getBoundingClientRect();
+        setPosition({
+          top: (rect.bottom + 8),
+          left: (rect.right - 220)
+        });
+      }
+    };
+    updatePosition();
+    window.addEventListener('scroll', updatePosition);
+    window.addEventListener('resize', updatePosition);
+    return () => {
+      window.removeEventListener('scroll', updatePosition);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [anchorRef]);
 
   // Load bookmark state
   useEffect(() => {
@@ -1720,8 +1910,18 @@ function AyahDropdownMenu({ ayah, surahNumber, surahName, anchorRef, onClose, on
     }
   };
 
-  return (
-    <div className="ayah-dropdown" ref={menuRef} onClick={e => e.stopPropagation()}>
+  return createPortal(
+    <div 
+      className="ayah-dropdown" 
+      ref={menuRef} 
+      onClick={e => e.stopPropagation()}
+      style={{
+        position: 'fixed',
+        top: `${position.top}px`,
+        left: `${position.left}px`,
+        zIndex: 9999
+      }}
+    >
       <div className="ayah-dropdown-header">
         <span className="ayah-dropdown-verse">Ayah {ayah.numberInSurah}</span>
         <button className="ayah-dropdown-close" onClick={onClose}><IconX /></button>
@@ -1731,7 +1931,7 @@ function AyahDropdownMenu({ ayah, surahNumber, surahName, anchorRef, onClose, on
           <IconBookmarkFill filled={bookmarked} />
           <span>{bookmarked ? 'Bookmarked' : 'Bookmark'}</span>
         </button>
-        <button className={`ayah-dropdown-item ${ayahPlaying ? 'active' : ''}`} onClick={() => onPlayAyah(ayah)}>
+        <button className={`ayah-dropdown-item ${ayahPlaying ? 'active' : ''}`} onClick={() => onPlayAyah(ayah.verseKey || `${surahNumber}:${ayah.numberInSurah}`)}>
           {ayahPlaying ? <IconPause /> : <IconPlaySmall />}
           <span>{ayahPlaying ? 'Pause Ayah' : 'Play Ayah'}</span>
         </button>
@@ -1771,7 +1971,8 @@ function AyahDropdownMenu({ ayah, surahNumber, surahName, anchorRef, onClose, on
           </div>
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -2033,6 +2234,14 @@ function Quran({ audioControls, onOpenSearch }) {
     return String(ayah.verseKey || `${ayah.chapterNumber || surah?.number || 0}:${ayah.numberInSurah || ayah.number || 0}`);
   };
 
+  const normalizeQuranAudioUrl = (rawUrl) => {
+    const value = String(rawUrl || '').trim();
+    if (!value) return '';
+    if (value.startsWith('http://') || value.startsWith('https://')) return value;
+    if (value.startsWith('//')) return `https:${value}`;
+    return `https://audio.qurancdn.com/${value.replace(/^\/+/, '')}`;
+  };
+
   // ── Reading position tracking ──
   useEffect(() => {
     if (!surah || !readerRef.current) return;
@@ -2080,65 +2289,21 @@ function Quran({ audioControls, onOpenSearch }) {
 
   // ── Audio via AppShell props ──
   const { audioState, audioMode, currentAyahAudio, selectedReciter, allReciters, surahInfo,
-    stopAudio, playAudioUrl, setSelectedReciter, togglePlay } = audioControls;
+    stopAudio, playAudioUrl, setSelectedReciter, togglePlay, playSpecificAyah } = audioControls;
 
-  const playAyah = (ayah) => {
-    if (!surah) return;
-    const chapterForAyah = ayah.chapterNumber || surah.number;
-    if (audioMode === 'ayah' && currentAyahAudio === ayah.numberInSurah && surahInfo?.number === chapterForAyah) {
-      togglePlay();
-      return;
-    }
-    const verseKey = `${chapterForAyah}:${ayah.numberInSurah}`;
-    fetch(`${API_BASE}/api/audio/verse/${selectedReciter}/${chapterForAyah}`)
-      .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
-      .then(data => {
-        const files = data?.audio_files;
-        if (!files || !files.length) throw new Error('No audio data');
-        const match = files.find(f => f.verse_key === verseKey);
-        if (!match) throw new Error('Verse not found');
-        const audioUrl = match.url.startsWith('http') ? match.url : `https://audio.qurancdn.com/${match.url}`;
-        const ayahPlaylist = files
-          .map(f => {
-            const ayahPart = String(f?.verse_key || '').split(':')[1];
-            const ayahNumber = Number(ayahPart);
-            if (!ayahNumber || !f?.url) return null;
-            const itemUrl = f.url.startsWith('http') ? f.url : `https://audio.qurancdn.com/${f.url}`;
-            return { ayahNumber, url: itemUrl };
-          })
-          .filter(Boolean)
-          .sort((a, b) => a.ayahNumber - b.ayahNumber);
-
-        playAudioUrl(
-          audioUrl,
-          { number: chapterForAyah, name: surah.englishName, totalAyahs: surah.ayahs.length },
-          'ayah',
-          ayah.numberInSurah,
-          { ayahPlaylist, autoAdvance: false }
-        );
-      })
-      .catch(() => stopAudio());
+  const playAyah = (verseRef) => {
+    if (!surah || !playSpecificAyah) return;
+    playSpecificAyah(verseRef, {
+      fallbackSurah: surah.number,
+      surahName: surah.englishName,
+      totalAyahs: surah.ayahs.length,
+    });
   };
 
   const playSurah = () => {
     if (!surah) return;
     const isCurrentSurahAudio = surahInfo?.number === surah.number;
     if (audioMode === 'surah' && isCurrentSurahAudio) { togglePlay(); return; }
-    const reciterObj = allReciters.find(r => r.id === selectedReciter);
-    const isMp3Quran = reciterObj?.source === 'mp3quran';
-
-    if (isMp3Quran) {
-      if (!reciterObj?.server) { stopAudio(); return; }
-      const audioUrl = `${reciterObj.server}${String(surah.number).padStart(3, '0')}.mp3`;
-      playAudioUrl(
-        audioUrl,
-        { number: surah.number, name: surah.englishName, totalAyahs: surah.ayahs.length },
-        'surah',
-        null,
-        { ayahPlaylist: null, autoAdvance: false }
-      );
-      return;
-    }
 
     // Prefer verse playlist for auto-follow; if unavailable, fall back to full chapter audio.
     fetch(`${API_BASE}/api/audio/verse/${selectedReciter}/${surah.number}`)
@@ -2152,7 +2317,7 @@ function Quran({ audioControls, onOpenSearch }) {
             const ayahPart = String(f?.verse_key || '').split(':')[1];
             const ayahNumber = Number(ayahPart);
             if (!ayahNumber || !f?.url) return null;
-            const itemUrl = f.url.startsWith('http') ? f.url : `https://audio.qurancdn.com/${f.url}`;
+            const itemUrl = normalizeQuranAudioUrl(f.url);
             return { ayahNumber, url: itemUrl };
           })
           .filter(Boolean)
@@ -2175,9 +2340,7 @@ function Quran({ audioControls, onOpenSearch }) {
           .then(data => {
             const audioFile = data?.audio_file;
             if (!audioFile?.audio_url) throw new Error('No chapter audio');
-            const audioUrl = audioFile.audio_url.startsWith('http')
-              ? audioFile.audio_url
-              : `https://audio.qurancdn.com/${audioFile.audio_url}`;
+            const audioUrl = normalizeQuranAudioUrl(audioFile.audio_url);
             playAudioUrl(
               audioUrl,
               { number: surah.number, name: surah.englishName, totalAyahs: surah.ayahs.length },
@@ -2542,16 +2705,16 @@ function Quran({ audioControls, onOpenSearch }) {
                   <div className="tajweed-legend">
                     <h4 className="tajweed-legend-title">Tajweed Color Key</h4>
                     <div className="tajweed-legend-grid">
-                      <span className="tajweed-legend-item"><span className="tajweed-dot" style={{background:'#FF4D4D'}} />Qalqalah</span>
-                      <span className="tajweed-legend-item"><span className="tajweed-dot" style={{background:'#FF44DD'}} />Ikhfa</span>
-                      <span className="tajweed-legend-item"><span className="tajweed-dot" style={{background:'#44FF88'}} />Idghaam</span>
-                      <span className="tajweed-legend-item"><span className="tajweed-dot" style={{background:'#00E5FF'}} />Iqlaab</span>
-                      <span className="tajweed-legend-item"><span className="tajweed-dot" style={{background:'#FFAA00'}} />Ghunnah</span>
-                      <span className="tajweed-legend-item"><span className="tajweed-dot" style={{background:'#7AACFF'}} />Madd Normal</span>
-                      <span className="tajweed-legend-item"><span className="tajweed-dot" style={{background:'#AABFFF'}} />Madd Permissible</span>
-                      <span className="tajweed-legend-item"><span className="tajweed-dot" style={{background:'#5577FF'}} />Madd Obligatory</span>
-                      <span className="tajweed-legend-item"><span className="tajweed-dot" style={{background:'#DDFF00'}} />Idghaam Mutajanisayn</span>
-                      <span className="tajweed-legend-item"><span className="tajweed-dot" style={{background:'#D0D0D0'}} />Silent / Hamzat Wasl</span>
+                      <span className="tajweed-legend-item"><span className="tajweed-dot qalaqah" style={{background:'#FF4D4D'}} />Qalqalah</span>
+                      <span className="tajweed-legend-item"><span className="tajweed-dot ikhfa" style={{background:'#FF44DD'}} />Ikhfa</span>
+                      <span className="tajweed-legend-item"><span className="tajweed-dot idghaam_ghunnah" style={{background:'#44FF88'}} />Idghaam</span>
+                      <span className="tajweed-legend-item"><span className="tajweed-dot iqlaab" style={{background:'#00E5FF'}} />Iqlaab</span>
+                      <span className="tajweed-legend-item"><span className="tajweed-dot ghunnah" style={{background:'#FFAA00'}} />Ghunnah</span>
+                      <span className="tajweed-legend-item"><span className="tajweed-dot madda_normal" style={{background:'#7AACFF'}} />Madd Normal</span>
+                      <span className="tajweed-legend-item"><span className="tajweed-dot madda_permissible" style={{background:'#AABFFF'}} />Madd Permissible</span>
+                      <span className="tajweed-legend-item"><span className="tajweed-dot madda_obligatory" style={{background:'#5577FF'}} />Madd Obligatory</span>
+                      <span className="tajweed-legend-item"><span className="tajweed-dot idghaam_mutajanisayn" style={{background:'#DDFF00'}} />Idghaam Mutajanisayn</span>
+                      <span className="tajweed-legend-item"><span className="tajweed-dot ham_wasl" style={{background:'#D0D0D0'}} />Silent / Hamzat Wasl</span>
                     </div>
                   </div>
                 )}
@@ -4248,13 +4411,8 @@ function AppShell({ tab, setTab }) {
   const [globalVolume, setGlobalVolume] = useState(() => {
     try { return parseFloat(localStorage.getItem('audioVolume')) || 1; } catch { return 1; }
   });
-  const [globalPlaybackRate, setGlobalPlaybackRate] = useState(() => {
-    try {
-      const saved = parseFloat(localStorage.getItem('audioPlaybackRate'));
-      const valid = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
-      return valid.includes(saved) ? saved : 1;
-    } catch { return 1; }
-  });
+  const [globalPlaybackRate, setGlobalPlaybackRate] = useState(1);
+  const globalPlaybackRateRef = useRef(1);
   const [globalRepeatMode, setGlobalRepeatMode] = useState(() => {
     try {
       const saved = localStorage.getItem('audioRepeatMode');
@@ -4266,14 +4424,13 @@ function AppShell({ tab, setTab }) {
   const [globalReciter, setGlobalReciter] = useState(() => {
     try {
       const saved = localStorage.getItem('selectedReciter');
-      if (!saved) return 1;
-      // mp3quran IDs are strings like 'mp3_43', DC IDs are numbers
-      return saved.startsWith('mp3_') ? saved : (parseInt(saved) || 1);
+      return saved ? (parseInt(saved, 10) || 1) : 1;
     } catch { return 1; }
   });
   const [globalReciters, setGlobalReciters] = useState(QF_RECITERS);
   const [globalAyahPlaylist, setGlobalAyahPlaylist] = useState(null);
   const [globalAutoAdvance, setGlobalAutoAdvance] = useState(false);
+  const [globalActiveTrack, setGlobalActiveTrack] = useState({ surah: null, ayah: null, isPlaying: false });
 
   // ── Page transition animations ──
   const [transitionClass, setTransitionClass] = useState('');
@@ -4310,21 +4467,43 @@ function AppShell({ tab, setTab }) {
     return () => clearTimeout(timer);
   }, [tab]);
 
-  // Load mp3quran reciters at app level
+  // Load all ayah-capable reciters from one source to keep voice consistent.
   useEffect(() => {
-    fetch(`${API_BASE}/api/mp3quran/reciters`)
-      .then(r => r.json())
+    fetch(`${API_BASE}/api/recitations`)
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (data?.reciters?.length) {
-          const mp3reciters = data.reciters.map(r => ({
-            id: r.id, name: r.name, style: r.style || 'Murattal',
-            source: 'mp3quran', server: r.server,
-          }));
-          setGlobalReciters([...QF_RECITERS, ...mp3reciters]);
+        const recitations = data?.recitations;
+        if (Array.isArray(recitations)) {
+          const mapped = recitations
+            .map(item => {
+              const id = Number(item?.id);
+              const name = String(item?.reciter_name || item?.name || '').trim();
+              if (!Number.isFinite(id) || !name) return null;
+              return {
+                id,
+                name,
+                style: inferReciterStyle(name),
+                source: 'dc',
+              };
+            })
+            .filter(Boolean);
+
+          const deduped = Array.from(new Map(mapped.map(r => [r.id, r])).values());
+          if (deduped.length) {
+            setGlobalReciters(deduped);
+          }
         }
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!globalReciters.length) return;
+    const exists = globalReciters.some(r => Number(r.id) === Number(globalReciter));
+    if (!exists) {
+      setGlobalReciter(Number(globalReciters[0].id));
+    }
+  }, [globalReciters, globalReciter]);
 
   // Save volume changes
   useEffect(() => {
@@ -4333,7 +4512,7 @@ function AppShell({ tab, setTab }) {
   }, [globalVolume]);
 
   useEffect(() => {
-    localStorage.setItem('audioPlaybackRate', String(globalPlaybackRate));
+    globalPlaybackRateRef.current = globalPlaybackRate;
     if (audioRef.current) audioRef.current.playbackRate = globalPlaybackRate;
   }, [globalPlaybackRate]);
 
@@ -4362,6 +4541,7 @@ function AppShell({ tab, setTab }) {
     setGlobalAutoAdvance(false);
     setGlobalCurrentTime(0);
     setGlobalDuration(0);
+    setGlobalActiveTrack({ surah: null, ayah: null, isPlaying: false });
   }, []);
 
   const playGlobalAudio = useCallback((url, surahInfo, mode, ayahNum, options = {}) => {
@@ -4377,10 +4557,20 @@ function AppShell({ tab, setTab }) {
     setGlobalAutoAdvance(!!options.autoAdvance);
     setGlobalCurrentTime(0);
     setGlobalDuration(0);
+    setGlobalActiveTrack({ surah: surahInfo?.number || null, ayah: ayahNum || null, isPlaying: false });
+
+    const currentSurahNumber = Number(globalSurahInfo?.number) || null;
+    const nextSurahNumber = Number(surahInfo?.number) || null;
+    const isSurahChange = currentSurahNumber && nextSurahNumber && currentSurahNumber !== nextSurahNumber;
+    const effectivePlaybackRate = isSurahChange ? 1 : globalPlaybackRateRef.current;
+
+    if (isSurahChange && globalPlaybackRateRef.current !== 1) {
+      setGlobalPlaybackRate(1);
+    }
 
     const audio = new Audio(url);
     audio.volume = globalVolume;
-    audio.playbackRate = globalPlaybackRate;
+    audio.playbackRate = effectivePlaybackRate;
     audioRef.current = audio;
 
     const onTimeUpdate = () => {
@@ -4391,7 +4581,12 @@ function AppShell({ tab, setTab }) {
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('loadedmetadata', () => setGlobalDuration(audio.duration));
     audio.addEventListener('canplaythrough', () => {
-      audio.play().then(() => setGlobalAudioState('playing')).catch(() => stopGlobalAudio());
+      audio.play()
+        .then(() => {
+          setGlobalAudioState('playing');
+          setGlobalActiveTrack({ surah: surahInfo?.number || null, ayah: ayahNum || null, isPlaying: true });
+        })
+        .catch(() => stopGlobalAudio());
     }, { once: true });
 
     // Use options parameters directly instead of state variables
@@ -4423,16 +4618,18 @@ function AppShell({ tab, setTab }) {
     };
     audio.onerror = () => stopGlobalAudio();
     audio.load();
-  }, [globalVolume, globalPlaybackRate, stopGlobalAudio]);
+  }, [globalVolume, globalSurahInfo, stopGlobalAudio]);
 
   const toggleGlobalPlay = useCallback(() => {
     if (!audioRef.current) return;
     if (globalAudioState === 'playing') {
       audioRef.current.pause();
       setGlobalAudioState('paused');
+      setGlobalActiveTrack(prev => ({ ...prev, isPlaying: false }));
     } else if (globalAudioState === 'paused') {
       audioRef.current.play();
       setGlobalAudioState('playing');
+      setGlobalActiveTrack(prev => ({ ...prev, isPlaying: true }));
     }
   }, [globalAudioState]);
 
@@ -4443,10 +4640,90 @@ function AppShell({ tab, setTab }) {
     audioRef.current.currentTime = pct * globalDuration;
   }, [globalDuration]);
 
+  const normalizeQuranAudioUrl = useCallback((rawUrl) => {
+    const value = String(rawUrl || '').trim();
+    if (!value) return '';
+    if (value.startsWith('http://') || value.startsWith('https://')) return value;
+    if (value.startsWith('//')) return `https:${value}`;
+    return `https://audio.qurancdn.com/${value.replace(/^\/+/, '')}`;
+  }, []);
+
+  const fetchSurahMeta = useCallback(async (surahNumber) => {
+    const info = { number: surahNumber, name: `Surah ${surahNumber}`, totalAyahs: null };
+    try {
+      const chaptersRes = await fetch(`${API_BASE}/api/chapters`);
+      if (!chaptersRes.ok) return info;
+      const chaptersData = await chaptersRes.json();
+      const chapter = (chaptersData?.chapters || []).find(c => Number(c.id) === Number(surahNumber));
+      if (!chapter) return info;
+      return {
+        number: surahNumber,
+        name: chapter.name_simple || info.name,
+        totalAyahs: chapter.verses_count || null,
+      };
+    } catch {
+      return info;
+    }
+  }, []);
+
+  const fetchAyahPlaylistForSurah = useCallback(async (reciterId, surahNumber) => {
+    const res = await fetch(`${API_BASE}/api/audio/verse/${reciterId}/${surahNumber}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const files = data?.audio_files;
+    if (!Array.isArray(files) || files.length === 0) return null;
+    const playlist = files
+      .map(f => {
+        const ayahPart = String(f?.verse_key || '').split(':')[1];
+        const ayahNumber = Number(ayahPart);
+        if (!ayahNumber || !f?.url) return null;
+        return { ayahNumber, url: normalizeQuranAudioUrl(f.url) };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.ayahNumber - b.ayahNumber);
+    if (!playlist.length) return null;
+    return playlist;
+  }, [normalizeQuranAudioUrl]);
+
+  const playSpecificAyahGlobal = useCallback(async (verseRef, meta = {}) => {
+    const ref = typeof verseRef === 'string'
+      ? verseRef
+      : String(verseRef?.verseKey || verseRef?.verse_key || '');
+    const [chapterPart, ayahPart] = ref.includes(':')
+      ? ref.split(':')
+      : [String(meta.fallbackSurah || globalSurahInfo?.number || ''), String(verseRef?.numberInSurah || verseRef?.ayah || '')];
+
+    const chapterNumber = Number(chapterPart);
+    const ayahNumber = Number(ayahPart);
+    if (!chapterNumber || !ayahNumber) return;
+
+    if (Number(globalSurahInfo?.number) === chapterNumber && Number(globalAyahNum) === ayahNumber && globalAudioState !== 'idle') {
+      toggleGlobalPlay();
+      return;
+    }
+
+    try {
+      const playlist = await fetchAyahPlaylistForSurah(globalReciter, chapterNumber);
+      if (!playlist) return;
+      const target = playlist.find(item => item.ayahNumber === ayahNumber);
+      if (!target?.url) return;
+      const surahInfo = {
+        number: chapterNumber,
+        name: meta.surahName || `Surah ${chapterNumber}`,
+        totalAyahs: meta.totalAyahs || playlist.length || null,
+      };
+      playGlobalAudio(target.url, surahInfo, 'ayah', ayahNumber, {
+        ayahPlaylist: playlist,
+        autoAdvance: false,
+      });
+    } catch {
+      // Keep existing playback state.
+    }
+  }, [globalReciter, globalSurahInfo, globalAyahNum, globalAudioState, toggleGlobalPlay, fetchAyahPlaylistForSurah, playGlobalAudio]);
+
   const playSurahTrackByNumber = useCallback(async (surahNumber) => {
     if (!surahNumber || surahNumber < 1 || surahNumber > 114) return;
 
-    const reciterObj = globalReciters.find(r => r.id === globalReciter);
     const baseSurahInfo = {
       number: surahNumber,
       name: `Surah ${surahNumber}`,
@@ -4467,13 +4744,6 @@ function AppShell({ tab, setTab }) {
       // Best-effort metadata only.
     }
 
-    if (reciterObj?.source === 'mp3quran') {
-      if (!reciterObj.server) return;
-      const url = `${reciterObj.server}${String(surahNumber).padStart(3, '0')}.mp3`;
-      playGlobalAudio(url, baseSurahInfo, 'surah', null, { ayahPlaylist: null, autoAdvance: false });
-      return;
-    }
-
     try {
       const verseRes = await fetch(`${API_BASE}/api/audio/verse/${globalReciter}/${surahNumber}`);
       if (verseRes.ok) {
@@ -4485,7 +4755,7 @@ function AppShell({ tab, setTab }) {
               const ayahPart = String(f?.verse_key || '').split(':')[1];
               const ayahNumber = Number(ayahPart);
               if (!ayahNumber || !f?.url) return null;
-              const itemUrl = f.url.startsWith('http') ? f.url : `https://audio.qurancdn.com/${f.url}`;
+              const itemUrl = normalizeQuranAudioUrl(f.url);
               return { ayahNumber, url: itemUrl };
             })
             .filter(Boolean)
@@ -4508,99 +4778,81 @@ function AppShell({ tab, setTab }) {
       const chapterData = await chapterRes.json();
       const audioFile = chapterData?.audio_file;
       if (!audioFile?.audio_url) return;
-      const url = audioFile.audio_url.startsWith('http')
-        ? audioFile.audio_url
-        : `https://audio.qurancdn.com/${audioFile.audio_url}`;
+      const url = normalizeQuranAudioUrl(audioFile.audio_url);
       playGlobalAudio(url, baseSurahInfo, 'surah', null, { ayahPlaylist: null, autoAdvance: false });
     } catch {
       // Keep current playback state on failures.
     }
-  }, [globalReciters, globalReciter, playGlobalAudio]);
+  }, [globalReciter, playGlobalAudio, normalizeQuranAudioUrl]);
 
   const stepGlobalAyah = useCallback(async (delta) => {
     if (!globalSurahInfo?.number) return;
-    if (globalAudioMode === 'surah') {
-      if (Array.isArray(globalAyahPlaylist) && globalAyahPlaylist.length > 0 && Number(globalAyahNum)) {
-        const idx = globalAyahPlaylist.findIndex(item => item.ayahNumber === globalAyahNum);
-        const targetIndex = idx + delta;
-        const within = globalAyahPlaylist[targetIndex];
-        if (within?.url) {
-          playGlobalAudio(within.url, globalSurahInfo, 'surah', within.ayahNumber, {
-            ayahPlaylist: globalAyahPlaylist,
-            autoAdvance: globalAutoAdvance,
-          });
-          return;
-        }
-      }
+    const currentSurah = Number(globalSurahInfo.number);
 
-      const targetSurah = Number(globalSurahInfo.number) + delta;
-      if (targetSurah < 1 || targetSurah > 114) return;
-      await playSurahTrackByNumber(targetSurah);
-      return;
-    }
+    let playlist = Array.isArray(globalAyahPlaylist) && globalAyahPlaylist.length
+      ? globalAyahPlaylist
+      : await fetchAyahPlaylistForSurah(globalReciter, currentSurah);
+    if (!playlist || !playlist.length) return;
 
-    if (Array.isArray(globalAyahPlaylist) && globalAyahPlaylist.length > 0) {
-      const idx = globalAyahPlaylist.findIndex(item => item.ayahNumber === globalAyahNum);
-      const baseIndex = idx >= 0 ? idx : (delta > 0 ? 0 : 1);
-      const targetIndex = baseIndex + delta;
-      const next = globalAyahPlaylist[targetIndex];
-      if (!next?.url) return;
-      playGlobalAudio(next.url, globalSurahInfo, globalAudioMode || 'ayah', next.ayahNumber, { ayahPlaylist: globalAyahPlaylist, autoAdvance: globalAutoAdvance });
-      return;
-    }
-    try {
-      const res = await fetch(`${API_BASE}/api/audio/verse/${globalReciter}/${globalSurahInfo.number}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      const files = data?.audio_files;
-      if (!Array.isArray(files) || files.length === 0) return;
+    const currentAyah = Number(globalAyahNum) || 1;
+    let index = playlist.findIndex(item => item.ayahNumber === currentAyah);
+    if (index < 0) index = delta > 0 ? -1 : 0;
+    const targetIndex = index + delta;
+    const within = playlist[targetIndex];
 
-      const currentAyah = Number(globalAyahNum) || 1;
-      const targetAyah = (globalAudioMode === 'surah' && !globalAyahNum && delta < 0)
-        ? 1
-        : currentAyah + delta;
-      if (targetAyah < 1) return;
-      if (globalSurahInfo.totalAyahs && targetAyah > globalSurahInfo.totalAyahs) return;
-
-      const target = files.find(f => {
-        if (!f?.verse_key) return false;
-        const [, ayahPart] = String(f.verse_key).split(':');
-        return Number(ayahPart) === targetAyah;
+    if (within?.url) {
+      playGlobalAudio(within.url, globalSurahInfo, globalAudioMode || 'ayah', within.ayahNumber, {
+        ayahPlaylist: playlist,
+        autoAdvance: globalAudioMode === 'surah',
       });
-      if (!target?.url) return;
-
-      const audioUrl = target.url.startsWith('http') ? target.url : `https://audio.qurancdn.com/${target.url}`;
-      playGlobalAudio(audioUrl, globalSurahInfo, globalAudioMode || 'ayah', targetAyah, { autoAdvance: globalAutoAdvance });
-    } catch {
-      // Ignore fetch/navigation failures and keep current playback state.
+      return;
     }
-  }, [globalAudioMode, globalSurahInfo, globalAyahNum, globalAyahPlaylist, globalReciter, globalAutoAdvance, playGlobalAudio, playSurahTrackByNumber]);
+
+    const nextSurah = currentSurah + (delta > 0 ? 1 : -1);
+    if (nextSurah < 1 || nextSurah > 114) return;
+
+    const nextPlaylist = await fetchAyahPlaylistForSurah(globalReciter, nextSurah);
+    if (nextPlaylist?.length) {
+      const nextSurahInfo = await fetchSurahMeta(nextSurah);
+      const edgeAyah = delta > 0 ? nextPlaylist[0] : nextPlaylist[nextPlaylist.length - 1];
+      playGlobalAudio(edgeAyah.url, nextSurahInfo, globalAudioMode || 'ayah', edgeAyah.ayahNumber, {
+        ayahPlaylist: nextPlaylist,
+        autoAdvance: globalAudioMode === 'surah',
+      });
+      return;
+    }
+
+    // Keep ayah transport strict: if we cannot resolve ayah audio, do not jump to chapter streams.
+  }, [globalSurahInfo, globalReciter, globalAyahPlaylist, globalAyahNum, globalAudioMode, playGlobalAudio, fetchAyahPlaylistForSurah, fetchSurahMeta]);
 
   const globalAudioControls = {
     audioRef, audioState: globalAudioState, audioMode: globalAudioMode,
     currentAyahAudio: globalAyahNum, selectedReciter: globalReciter,
     allReciters: globalReciters, surahInfo: globalSurahInfo,
+    activeTrack: globalActiveTrack,
     setSelectedReciter: (id) => { stopGlobalAudio(); setGlobalReciter(id); },
     stopAudio: stopGlobalAudio,
     playAudioUrl: playGlobalAudio,
     togglePlay: toggleGlobalPlay,
+    playSpecificAyah: playSpecificAyahGlobal,
   };
 
   const showPlayer = globalAudioState !== 'idle' && globalSurahInfo;
   const hasSurahContext = !!globalSurahInfo?.number;
+  const hasAyahReciterMatch = globalReciters.some(r => Number(r.id) === Number(globalReciter));
   const ayahMin = 1;
   const ayahMax = globalSurahInfo?.totalAyahs || null;
   const hasPlaylist = Array.isArray(globalAyahPlaylist) && globalAyahPlaylist.length > 0;
   const playlistIndex = hasPlaylist ? globalAyahPlaylist.findIndex(item => item.ayahNumber === globalAyahNum) : -1;
-  const canPrevAyah = hasSurahContext && (
-    (globalAudioMode === 'surah' && Number(globalSurahInfo?.number) > 1) ||
-    (globalAudioMode === 'ayah' && hasPlaylist && playlistIndex > 0) ||
-    (globalAudioMode === 'ayah' && !hasPlaylist && Number(globalAyahNum) > ayahMin)
+  const canPrevAyah = hasSurahContext && hasAyahReciterMatch && (
+    (hasPlaylist && playlistIndex > 0) ||
+    Number(globalSurahInfo?.number) > 1 ||
+    (!hasPlaylist && Number(globalAyahNum || 1) > ayahMin)
   );
-  const canNextAyah = hasSurahContext && (
-    (globalAudioMode === 'surah' && Number(globalSurahInfo?.number) < 114) ||
-    (globalAudioMode === 'ayah' && hasPlaylist && playlistIndex >= 0 && playlistIndex < globalAyahPlaylist.length - 1) ||
-    (globalAudioMode === 'ayah' && !hasPlaylist && (!ayahMax || Number(globalAyahNum) < ayahMax))
+  const canNextAyah = hasSurahContext && hasAyahReciterMatch && (
+    (hasPlaylist && playlistIndex >= 0 && playlistIndex < globalAyahPlaylist.length - 1) ||
+    Number(globalSurahInfo?.number) < 114 ||
+    (!hasPlaylist && (!ayahMax || Number(globalAyahNum || 1) < ayahMax))
   );
 
   // ── Global search overlay ──
@@ -4654,50 +4906,7 @@ function AppShell({ tab, setTab }) {
     return () => window.removeEventListener('keydown', handler);
   }, [showSettings, showSearch, globalAudioState, toggleGlobalPlay, setShowSettings]);
 
-
-  const appStyle = {};
-  if (settings.customAccent) {
-    const hex = settings.customAccent.replace('#', '');
-    const r = parseInt(hex.substring(0,2), 16), g = parseInt(hex.substring(2,4), 16), b = parseInt(hex.substring(4,6), 16);
-    // Perceived brightness (0-255)
-    const lum = (r * 299 + g * 587 + b * 114) / 1000;
-    const isLight = lum > 140;
-    if (isLight) {
-      // Light theme derived from color
-      const mix = (c, w) => Math.round(c + (255 - c) * w);
-      const dim = (c, w) => Math.round(c * w);
-      appStyle['--bg-primary'] = `rgb(${mix(r,.92)}, ${mix(g,.92)}, ${mix(b,.92)})`;
-      appStyle['--bg-secondary'] = `rgb(${mix(r,.85)}, ${mix(g,.85)}, ${mix(b,.85)})`;
-      appStyle['--bg-tertiary'] = `rgb(${mix(r,.95)}, ${mix(g,.95)}, ${mix(b,.95)})`;
-      appStyle['--bg-hover'] = `rgba(${dim(r,.3)}, ${dim(g,.3)}, ${dim(b,.3)}, 0.06)`;
-      appStyle['--text-primary'] = `rgb(${dim(r,.15)}, ${dim(g,.15)}, ${dim(b,.15)})`;
-      appStyle['--text-secondary'] = `rgb(${dim(r,.45)}, ${dim(g,.45)}, ${dim(b,.45)})`;
-      appStyle['--accent'] = `rgb(${dim(r,.6)}, ${dim(g,.6)}, ${dim(b,.6)})`;
-      appStyle['--accent-hover'] = `rgb(${dim(r,.5)}, ${dim(g,.5)}, ${dim(b,.5)})`;
-      appStyle['--border'] = `rgba(${dim(r,.3)}, ${dim(g,.3)}, ${dim(b,.3)}, 0.12)`;
-      appStyle['--border-hover'] = `rgba(${dim(r,.3)}, ${dim(g,.3)}, ${dim(b,.3)}, 0.25)`;
-      appStyle['--nav-bg'] = `rgba(${mix(r,.88)}, ${mix(g,.88)}, ${mix(b,.88)}, 0.95)`;
-      appStyle['--shadow-card'] = `0 1px 6px rgba(${dim(r,.2)}, ${dim(g,.2)}, ${dim(b,.2)}, 0.08)`;
-      appStyle['--shadow-hover'] = `0 6px 20px rgba(${dim(r,.2)}, ${dim(g,.2)}, ${dim(b,.2)}, 0.14)`;
-    } else {
-      // Dark theme derived from color
-      const dim = (c, f) => Math.round(c * f);
-      const lit = (c, f) => Math.min(255, Math.round(c + (255 - c) * f));
-      appStyle['--bg-primary'] = `rgb(${dim(r,.12)}, ${dim(g,.12)}, ${dim(b,.12)})`;
-      appStyle['--bg-secondary'] = `rgba(${dim(r,.22)}, ${dim(g,.22)}, ${dim(b,.22)}, 0.7)`;
-      appStyle['--bg-tertiary'] = `rgba(${dim(r,.28)}, ${dim(g,.28)}, ${dim(b,.28)}, 0.6)`;
-      appStyle['--bg-hover'] = `rgba(${lit(r,.3)}, ${lit(g,.3)}, ${lit(b,.3)}, 0.08)`;
-      appStyle['--text-primary'] = `rgb(${lit(r,.85)}, ${lit(g,.85)}, ${lit(b,.85)})`;
-      appStyle['--text-secondary'] = `rgb(${lit(r,.5)}, ${lit(g,.5)}, ${lit(b,.5)})`;
-      appStyle['--accent'] = `rgb(${lit(r,.35)}, ${lit(g,.35)}, ${lit(b,.35)})`;
-      appStyle['--accent-hover'] = `rgb(${lit(r,.5)}, ${lit(g,.5)}, ${lit(b,.5)})`;
-      appStyle['--border'] = `rgba(${lit(r,.35)}, ${lit(g,.35)}, ${lit(b,.35)}, 0.15)`;
-      appStyle['--border-hover'] = `rgba(${lit(r,.35)}, ${lit(g,.35)}, ${lit(b,.35)}, 0.32)`;
-      appStyle['--nav-bg'] = `rgba(${dim(r,.08)}, ${dim(g,.08)}, ${dim(b,.08)}, 0.94)`;
-      appStyle['--shadow-card'] = `0 2px 12px rgba(0, 0, 0, 0.22)`;
-      appStyle['--shadow-hover'] = `0 8px 28px rgba(0, 0, 0, 0.35)`;
-    }
-  }
+  const appStyle = buildCustomThemeStyle(settings.customAccent) || {};
 
   const isLightMode = settings.theme === 'light';
   const toggleThemeMode = () => {

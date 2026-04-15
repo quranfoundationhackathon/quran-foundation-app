@@ -598,47 +598,10 @@
   font-weight: 500;
 }
 
-.reciter-style-tabs {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 8px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  white-space: nowrap;
-  padding: 10px 10px;
-  min-height: 44px;
-  align-items: center;
-  position: relative;
-  top: auto;
-  z-index: 1;
-  background: rgba(8, 14, 30, 0.98);
-  border-bottom: 1px solid rgba(93, 157, 148, 0.2);
-  scrollbar-width: thin;
-}
-
-.reciter-style-tab {
-  flex: 0 0 auto;
-  padding: 5px 11px;
-  line-height: 1.2;
-}
-
-.reciter-style-tabs::-webkit-scrollbar {
-  height: 6px;
-}
-
 .reciter-picker-section {
   position: relative;
   top: auto;
   z-index: auto;
-}
-
-.reciter-style-tabs::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.reciter-style-tabs::-webkit-scrollbar-thumb {
-  background: rgba(93, 157, 148, 0.3);
-  border-radius: 999px;
 }
 
 .reciter-picker-option {

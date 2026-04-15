@@ -1,42 +1,54 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" fill="none" role="img" aria-label="DeenCore logo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" fill="none" role="img" aria-label="DeenCore Crescent Node Logo">
   <title>DeenCore</title>
   <defs>
-    <linearGradient id="dcw-bg" x1="10" y1="8" x2="62" y2="64" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#133F78"/>
-      <stop offset="0.55" stop-color="#0A2448"/>
-      <stop offset="1" stop-color="#071626"/>
+    <linearGradient id="dcl-crescent-bg" x1="8" y1="6" x2="64" y2="66" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0A1428"/>
+      <stop offset="0.58" stop-color="#070D1A"/>
+      <stop offset="1" stop-color="#040814"/>
     </linearGradient>
-    <radialGradient id="dcw-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(24 20) rotate(40) scale(34)">
-      <stop offset="0" stop-color="#6BC0FF" stop-opacity="0.35"/>
-      <stop offset="1" stop-color="#6BC0FF" stop-opacity="0"/>
+    <linearGradient id="dcl-crescent-line" x1="20" y1="18" x2="52" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6BC7FF"/>
+      <stop offset="0.5" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#5DB8FF"/>
+    </linearGradient>
+    <radialGradient id="dcl-crescent-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(36 36) rotate(90) scale(25)">
+      <stop offset="0" stop-color="#5DB8FF" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#5DB8FF" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="dcw-crescent" x1="25" y1="27" x2="40" y2="48" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#F8DE9A"/>
-      <stop offset="1" stop-color="#D4A853"/>
-    </linearGradient>
-    <mask id="dcw-crescent-cut">
-      <rect width="80" height="80" fill="white"/>
-      <circle cx="40" cy="34" r="14" fill="black"/>
-    </mask>
+    <filter id="dcl-crescent-blur" x="15" y="15" width="42" height="42" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="1.8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
 
+  <!-- Icon group -->
   <g transform="translate(0 4)">
-    <rect x="4" y="4" width="64" height="64" rx="18" fill="url(#dcw-bg)"/>
-    <rect x="4.75" y="4.75" width="62.5" height="62.5" rx="17.25" stroke="#56A6D9" stroke-opacity="0.5" stroke-width="1.5"/>
-    <circle cx="36" cy="36" r="27" stroke="#5D9D94" stroke-opacity="0.28" stroke-width="1"/>
-    <circle cx="36" cy="36" r="27" fill="url(#dcw-glow)"/>
-    <circle cx="33" cy="38" r="15" fill="url(#dcw-crescent)" mask="url(#dcw-crescent-cut)"/>
-    <path
-      d="M50 19.1L51.5 22.2L54.9 22.6L52.4 24.9L53.1 28.2L50 26.5L46.9 28.2L47.6 24.9L45.1 22.6L48.5 22.2L50 19.1Z"
-      fill="#F4D48A"
-    />
-    <path d="M20 51.5H52" stroke="#5D9D94" stroke-opacity="0.38" stroke-width="1.4" stroke-linecap="round"/>
+    <rect x="4" y="4" width="64" height="64" rx="18" fill="url(#dcl-crescent-bg)"/>
+    <rect x="4.75" y="4.75" width="62.5" height="62.5" rx="17.25" stroke="#5DB8FF" stroke-opacity="0.42" stroke-width="1.5"/>
+    
+    <circle cx="36" cy="36" r="23.5" fill="url(#dcl-crescent-glow)"/>
+    <circle cx="36" cy="36" r="23.5" stroke="#B5E7FF" stroke-opacity="0.38" stroke-width="1"/>
+
+    <!-- Crescent moon shape (flipped) -->
+    <g filter="url(#dcl-crescent-blur)">
+      <path
+        d="M 40 18 C 30 18 22 26 22 36 C 22 46 30 54 40 54 C 35 54 25 48 25 36 C 25 24 35 18 40 18 Z"
+        fill="url(#dcl-crescent-line)"
+      />
+    </g>
+
+    <!-- Center core accent -->
+    <circle cx="36" cy="36" r="1.2" fill="#5DB8FF" opacity="0.6"/>
   </g>
 
+  <!-- Wordmark -->
   <text
     x="86"
     y="46"
-    fill="#72C2B8"
+    fill="#5DB8FF"
     font-family="'Sora', 'Segoe UI', Arial, sans-serif"
     font-size="35"
     font-weight="300"
@@ -46,21 +58,22 @@
   <text
     x="170"
     y="46"
-    fill="#EAF4FF"
+    fill="#E8F5FF"
     font-family="'Sora', 'Segoe UI', Arial, sans-serif"
     font-size="35"
     font-weight="700"
     letter-spacing="-1.1"
   >Core</text>
 
+  <!-- Tagline -->
   <text
     x="87"
     y="62"
-    fill="#5D9D94"
+    fill="#5DB8FF"
     font-family="'DM Sans', 'Segoe UI', Arial, sans-serif"
     font-size="9"
     font-weight="600"
     letter-spacing="2.2"
-    opacity="0.75"
+    opacity="0.65"
   >QURAN  SALAH  REFLECT</text>
 </svg>
