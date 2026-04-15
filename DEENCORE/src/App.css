@@ -1738,6 +1738,23 @@ button, a, .home-card, .surah-item, .ayah-card, .theme-option,
   .reader-toolbar { width: 100%; margin-left: 0; justify-content: flex-end; }
 
   .home-page { gap: 18px; }
+  .home-header-stack {
+    width: 100%;
+  }
+  .home-bismillah {
+    font-size: 2.1rem;
+    line-height: 1;
+    margin-bottom: 0.2rem;
+    letter-spacing: -0.08em;
+    white-space: nowrap;
+  }
+  .home-verse-arabic {
+    font-size: 1.15rem;
+    line-height: 1.9;
+    max-width: 100%;
+    overflow: hidden;
+    text-wrap: balance;
+  }
 
   .ayah-more-btn { opacity: 1; }
   .ayah-dropdown { width: 200px; right: 6px; top: 38px; }
@@ -1755,9 +1772,9 @@ button, a, .home-card, .surah-item, .ayah-card, .theme-option,
 
   .surah-list { grid-template-columns: repeat(2, 1fr); }
 
-  .home-bismillah { font-size: 2.2rem; }
+  .home-bismillah { font-size: 1.75rem; }
   .home-title { font-size: 1.5rem; }
-  .home-verse-arabic { font-size: 1.4rem; }
+  .home-verse-arabic { font-size: 1.02rem; line-height: 1.7; }
   .home-grid { gap: 8px; }
   .ayah-dropdown { width: 190px; }
   .ayah-dropdown-item { padding: 7px 10px; font-size: 0.8rem; }
@@ -5723,14 +5740,15 @@ button, a, .home-card, .surah-item, .ayah-card, .theme-option,
       "left right"
       "nav nav";
     align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
+    gap: 4px;
+    padding: 6px 8px 4px;
   }
 
   .app-chrome-group-left {
     grid-area: left;
     min-width: 0;
     overflow: visible;
+    flex: 1 1 auto;
   }
 
   .app-chrome-group-right {
@@ -5745,14 +5763,14 @@ button, a, .home-card, .surah-item, .ayah-card, .theme-option,
     transform: none;
     width: 100%;
     justify-content: space-between;
-    gap: 6px;
-    padding-top: 2px;
+    gap: 4px;
+    padding-top: 0;
   }
 
   .top-nav button {
     min-width: 0;
     flex: 1;
-    padding: 8px 6px;
+    padding: 6px 4px;
     gap: 2px;
     border-radius: 10px;
   }
@@ -5762,21 +5780,22 @@ button, a, .home-card, .surah-item, .ayah-card, .theme-option,
   }
 
   .app-corner-logo {
-    height: 40px;
+    height: 34px;
     width: auto;
+    max-width: 52vw;
     min-width: 0;
-    padding: 0 10px 0 6px;
-    border-radius: 14px;
+    padding: 0 8px 0 5px;
+    border-radius: 12px;
     flex-shrink: 0;
   }
 
   .app-corner-logo-img {
-    width: 26px;
-    height: 26px;
+    width: 22px;
+    height: 22px;
   }
 
   .app-corner-wordmark {
-    font-size: 0.78rem;
+    font-size: 0.7rem;
   }
 
   .nav-history-btns {
@@ -5784,14 +5803,14 @@ button, a, .home-card, .surah-item, .ayah-card, .theme-option,
   }
 
   .global-settings-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
   }
 
   .theme-toggle-btn {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
   }
 
   /* Inline desktop column widths come from JSX style; this enforces single-column mobile. */
@@ -5820,14 +5839,30 @@ button, a, .home-card, .surah-item, .ayah-card, .theme-option,
 @media (max-width: 430px) {
   .app-corner-wordmark {
     display: inline-flex;
-    font-size: 0.68rem;
-    letter-spacing: -0.03em;
+    font-size: 0.56rem;
+    letter-spacing: -0.045em;
   }
 
   .app-corner-logo {
     width: auto;
-    padding: 0 8px 0 4px;
+    height: 30px;
+    max-width: none;
+    padding: 0 7px 0 4px;
     justify-content: flex-start;
+  }
+
+  .app-corner-logo-img {
+    width: 18px;
+    height: 18px;
+  }
+
+  .app-chrome {
+    padding: 4px 6px 2px;
+    gap: 3px;
+  }
+
+  .top-nav {
+    gap: 2px;
   }
 
   .top-nav button span {
@@ -5835,7 +5870,7 @@ button, a, .home-card, .surah-item, .ayah-card, .theme-option,
   }
 
   .top-nav button {
-    padding: 8px 0;
+    padding: 5px 0 4px;
   }
 }
 
