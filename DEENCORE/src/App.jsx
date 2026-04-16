@@ -3654,14 +3654,14 @@ function ExploreOfficialDirectoryTool({ type }) {
           {loading ? 'Loading...' : 'Search Official Sources'}
         </button>
       </div>
-      {sourcePolicy && <p className="explore-nearme-meta">{sourcePolicy}</p>}
+      {!isMosque && sourcePolicy && <p className="explore-nearme-meta">{sourcePolicy}</p>}
       {error && <p className="explore-nearme-error">{error}</p>}
       {items.length > 0 && (
         <div className="explore-nearme-results">
           {items.map((item, idx) => (
             <div key={`${item.url}_${idx}`} className="explore-nearme-item">
               <div className="explore-nearme-item-top">
-                <span className="explore-nearme-source">{item.source}</span>
+                {!isMosque && <span className="explore-nearme-source">{item.source}</span>}
                 <span className="explore-nearme-status">{item.status}</span>
               </div>
               <div className="explore-nearme-name">{item.name}</div>

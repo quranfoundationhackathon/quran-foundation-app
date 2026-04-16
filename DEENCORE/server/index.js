@@ -1068,7 +1068,7 @@ const getZabihahMosques = async (queryText) => {
       .replace(/\s+\d+(\.\d+)?\s*·\s*\d+\s*reviews?\s*$/i, '')
       .trim();
     items.push({
-      source: 'Zabihah',
+      source: 'Official Directory',
       name,
       address,
       phone: '',
@@ -1116,7 +1116,7 @@ app.get('/api/official/mosques', async (req, res) => {
     const limit = Math.max(1, Math.min(50, parseInt(req.query.limit || '20', 10)));
     const data = await cachedOfficialFetch(`zabihah_mosques_${q.toLowerCase()}`, async () => getZabihahMosques(q));
     res.json({
-      sourcePolicy: 'Official Muslim directory source only (Zabihah prayer spaces)',
+      sourcePolicy: 'Official Muslim directory source only',
       total: data.length,
       items: data.slice(0, limit),
     });
