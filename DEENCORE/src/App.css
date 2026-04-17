@@ -1791,11 +1791,12 @@ button, a, .home-card, .surah-item, .ayah-card, .theme-option,
   inset: 0;
   background-color: rgba(0, 0, 0, 0.45);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   z-index: 1000;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  padding-top: 10vh;
   animation: fadeIn 0.2s ease;
 }
 
