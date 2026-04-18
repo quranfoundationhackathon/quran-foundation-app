@@ -4254,9 +4254,22 @@ function QuranSearch({ onNavigate, onClose }) {
 // ─── Global Audio Player Component ─────────────────────────
 
 function GlobalAudioPlayer({ audio, onClose }) {
-  const { currentTime, duration, playing, loading, surahName, surahNumber, ayahInfo, volume, repeatMode, speed, canPrevAyah, canNextAyah } = audio;
+  const {
+    currentTime,
+    duration,
+    playing,
+    loading,
+    surahName,
+    surahNumber,
+    ayahInfo,
+    volume,
+    repeatAyah,
+    loopEnabled,
+    speed,
+    canPrevAyah,
+    canNextAyah,
+  } = audio;
   const [showVolume, setShowVolume] = useState(false);
-  const repeatLabel = repeatMode === 'off' ? '' : (repeatMode === 'inf' ? '∞' : repeatMode);
 
   // ── Draggable position ──
   const [pos, setPos] = useState(() => {
@@ -4363,12 +4376,19 @@ function GlobalAudioPlayer({ audio, onClose }) {
       </div>
       <div className="global-player-extra">
         <button
-          className={`gp-btn ${repeatMode !== 'off' ? 'gp-repeat-active' : ''}`}
-          onClick={audio.onToggleRepeat}
-          title={`Repeat: ${repeatMode === 'off' ? 'off' : repeatMode === 'inf' ? 'infinity' : repeatMode}`}
+          className={`gp-btn gp-toggle-btn ${repeatAyah ? 'gp-repeat-active' : ''}`}
+          onClick={audio.onToggleRepeatAyah}
+          title={repeatAyah ? 'Disable repeat ayah' : 'Repeat current ayah'}
+        >
+          <span className="gp-toggle-label">Ayah</span>
+        </button>
+        <button
+          className={`gp-btn gp-toggle-btn ${loopEnabled ? 'gp-repeat-active' : ''}`}
+          onClick={audio.onToggleLoop}
+          title={loopEnabled ? 'Disable Surah loop' : 'Repeat Surah'}
         >
           <IconRepeat />
-          {repeatLabel && <span className="gp-repeat-count">{repeatLabel}</span>}
+          <span className="gp-toggle-label">Loop</span>
         </button>
         <select
           className="gp-speed-select"
@@ -4444,14 +4464,18 @@ function AppShell({ tab, setTab }) {
   });
   const [globalPlaybackRate, setGlobalPlaybackRate] = useState(1);
   const globalPlaybackRateRef = useRef(1);
-  const [globalRepeatMode, setGlobalRepeatMode] = useState(() => {
+  const [globalRepeatAyah, setGlobalRepeatAyah] = useState(() => {
     try {
-      const saved = localStorage.getItem('audioRepeatMode');
-      const valid = ['off', '1', '2', 'inf'];
-      return valid.includes(saved) ? saved : 'off';
-    } catch { return 'off'; }
+      return localStorage.getItem('audioRepeatAyah') === 'true';
+    } catch { return false; }
   });
-  const globalRepeatRemainingRef = useRef(0);
+  const globalRepeatAyahRef = useRef(globalRepeatAyah);
+  const [globalLoopEnabled, setGlobalLoopEnabled] = useState(() => {
+    try {
+      return localStorage.getItem('audioLoopEnabled') === 'true';
+    } catch { return false; }
+  });
+  const globalLoopEnabledRef = useRef(globalLoopEnabled);
   const [globalReciter, setGlobalReciter] = useState(() => {
     try {
       const saved = localStorage.getItem('selectedReciter');
@@ -4548,12 +4572,14 @@ function AppShell({ tab, setTab }) {
   }, [globalPlaybackRate]);
 
   useEffect(() => {
-    localStorage.setItem('audioRepeatMode', globalRepeatMode);
-    if (globalRepeatMode === '1') globalRepeatRemainingRef.current = 1;
-    else if (globalRepeatMode === '2') globalRepeatRemainingRef.current = 2;
-    else if (globalRepeatMode === 'inf') globalRepeatRemainingRef.current = Number.POSITIVE_INFINITY;
-    else globalRepeatRemainingRef.current = 0;
-  }, [globalRepeatMode]);
+    globalRepeatAyahRef.current = globalRepeatAyah;
+    localStorage.setItem('audioRepeatAyah', String(globalRepeatAyah));
+  }, [globalRepeatAyah]);
+
+  useEffect(() => {
+    globalLoopEnabledRef.current = globalLoopEnabled;
+    localStorage.setItem('audioLoopEnabled', String(globalLoopEnabled));
+  }, [globalLoopEnabled]);
 
   // Save reciter preference
   useEffect(() => { localStorage.setItem('selectedReciter', String(globalReciter)); }, [globalReciter]);
@@ -4623,28 +4649,46 @@ function AppShell({ tab, setTab }) {
     // Use options parameters directly instead of state variables
     const autoAdvance = !!options.autoAdvance;
     const ayahPlaylist = Array.isArray(options.ayahPlaylist) ? options.ayahPlaylist : null;
+    const currentAyahNum = Number(ayahNum) || null;
 
     audio.onended = () => {
+      const shouldRepeatAyah = !!globalRepeatAyahRef.current;
+      const shouldLoopPlayback = !!globalLoopEnabledRef.current;
+
+      if (shouldRepeatAyah && currentAyahNum) {
+        audio.currentTime = 0;
+        audio.play().then(() => setGlobalAudioState('playing')).catch(() => stopGlobalAudio());
+        return;
+      }
+
+      const hasPlaylist = Array.isArray(ayahPlaylist) && ayahPlaylist.length > 0;
+      const shouldFollowSurahSequence = hasPlaylist && (autoAdvance || shouldLoopPlayback);
+
       // Use the local autoAdvance and ayahPlaylist from options, not state
-      if (autoAdvance && Array.isArray(ayahPlaylist) && ayahPlaylist.length > 0 && ayahNum) {
-        const idx = ayahPlaylist.findIndex(item => item.ayahNumber === ayahNum);
+      if (shouldFollowSurahSequence && currentAyahNum) {
+        const idx = ayahPlaylist.findIndex(item => item.ayahNumber === currentAyahNum);
         const next = idx >= 0 ? ayahPlaylist[idx + 1] : null;
         if (next?.url) {
           playGlobalAudio(next.url, surahInfo, mode, next.ayahNumber, { ayahPlaylist: ayahPlaylist, autoAdvance: true });
           return;
         }
+
+        if (shouldLoopPlayback && ayahPlaylist[0]?.url) {
+          const first = ayahPlaylist[0];
+          playGlobalAudio(first.url, surahInfo, mode, first.ayahNumber, { ayahPlaylist: ayahPlaylist, autoAdvance: true });
+          return;
+        }
+
+        stopGlobalAudio();
+        return;
       }
-      if (globalRepeatRemainingRef.current === Number.POSITIVE_INFINITY) {
+
+      if (shouldLoopPlayback) {
         audio.currentTime = 0;
         audio.play().then(() => setGlobalAudioState('playing')).catch(() => stopGlobalAudio());
         return;
       }
-      if (globalRepeatRemainingRef.current > 0) {
-        globalRepeatRemainingRef.current -= 1;
-        audio.currentTime = 0;
-        audio.play().then(() => setGlobalAudioState('playing')).catch(() => stopGlobalAudio());
-        return;
-      }
+
       stopGlobalAudio();
     };
     audio.onerror = () => stopGlobalAudio();
@@ -5023,19 +5067,16 @@ function AppShell({ tab, setTab }) {
             ayahInfo: globalAyahNum ? `Ayah ${globalAyahNum}` : null,
             volume: globalVolume,
             speed: globalPlaybackRate,
-            repeatMode: globalRepeatMode,
+            repeatAyah: globalRepeatAyah,
+            loopEnabled: globalLoopEnabled,
             canPrevAyah,
             canNextAyah,
             onTogglePlay: toggleGlobalPlay,
             onSeek: seekGlobalAudio,
             onVolumeChange: setGlobalVolume,
             onSpeedChange: setGlobalPlaybackRate,
-            onToggleRepeat: () => setGlobalRepeatMode(prev => {
-              if (prev === 'off') return '1';
-              if (prev === '1') return '2';
-              if (prev === '2') return 'inf';
-              return 'off';
-            }),
+            onToggleRepeatAyah: () => setGlobalRepeatAyah(prev => !prev),
+            onToggleLoop: () => setGlobalLoopEnabled(prev => !prev),
             onPrevAyah: () => stepGlobalAyah(-1),
             onNextAyah: () => stepGlobalAyah(1),
           }}
