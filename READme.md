@@ -1,70 +1,154 @@
-# Quran Reader Islamic App
+# Quran Foundation App
 
-A multi-tab Quran reader built for the DEENCORE Hackathon. The app lets users browse all 114 surahs, read Arabic text with transliteration, and choose from multiple English/Urdu translations — all with a highly customizable reading experience.
+![React](https://img.shields.io/badge/Frontend-React%2018-61DAFB?logo=react&logoColor=white)
+![Vite](https://img.shields.io/badge/Build-Vite%205-646CFF?logo=vite&logoColor=white)
+![Express](https://img.shields.io/badge/Backend-Express-1f1f1f?logo=express&logoColor=white)
+![Node](https://img.shields.io/badge/Runtime-Node.js-339933?logo=nodedotjs&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-blue)
 
-## Features
+A full-stack Quran reading experience built with React + Vite on the frontend and an Express proxy backend for secure OAuth2 access to Quran Foundation content APIs.
 
-- **Quran Reader** — Browse and read all 114 surahs with verse-by-verse Arabic text and translations
-- **7 Translation Options** — Sahih International, Pickthall, Yusuf Ali, and more
-- **Multiple Arabic Scripts** — Uthmani, Indo-Pak, Simple, Naskh
-- **5 Themes** — Dark Navy, Light, Sepia, Mushaf Green, Deep Dark
-- **Customizable Display** — Adjustable font sizes, line height, spacing, card/flat layout, and ayah number toggles
-- **Persistent Settings** — All preferences saved to localStorage across sessions
-- **Salah & Explore Tabs** — Placeholder tabs for future prayer times and Islamic knowledge features
+## Screenshots
 
-## Tech Stack
+Use this section to showcase the app UI on the repository homepage.
 
-- **Frontend:** React 18 + Vite
-- **Backend:** Express with OAuth2 client credentials flow
-- **API:** DEENCORE API (`apis.quran.foundation`)
-- **Styling:** CSS with custom properties for theming
+```text
+Recommended image folder:
+DEENCORE/docs/screenshots/
+```
+
+Example markdown (replace with your actual files):
+
+```md
+![Home](DEENCORE/docs/screenshots/home.png)
+![Quran Reader](DEENCORE/docs/screenshots/quran-reader.png)
+![Global Audio Player](DEENCORE/docs/screenshots/audio-player.png)
+```
+
+## Highlights
+
+- Surah, Juz, and Hizb reading modes
+- Translation and tafsir support
+- Word-by-word endpoint integration
+- Ayah audio playback with reciter selection
+- Global mini player with:
+   - Repeat Ayah
+   - Surah Loop
+   - Transport, seek, speed, and volume
+- Responsive UI with persistent user preferences
+
+## Stack
+
+- Frontend: React 18 + Vite 5
+- Backend: Express + CORS + dotenv
+- Auth/API: OAuth2 Client Credentials with Quran Foundation APIs
 
 ## Architecture
 
-The frontend calls a local Express backend (`localhost:3001`), which securely proxies requests to the DEENCORE API using OAuth2 credentials stored in `server/.env`. This keeps API secrets off the client.
-
-```
-React Frontend → Express Backend → DEENCORE API
-       ↑                                     |
-       └─────── JSON response ───────────────┘
+```text
+Browser (Vite app) -> Local Express backend -> Quran Foundation API
 ```
 
-## Getting Started
+The backend handles token creation/caching and keeps secrets out of the client.
 
-1. **Install dependencies:**
-   ```bash
-   cd "DEENCORE Hackathon"
-   npm install
-   ```
+## Quick Start
 
-2. **Set up credentials** — Create `server/.env` with your DEENCORE API keys:
-   ```
-   QF_CLIENT_ID=your_client_id
-   QF_CLIENT_SECRET=your_client_secret
-   ```
+### 1. Install dependencies
 
-3. **Start the backend:**
-   ```bash
-   npm start
-   ```
-
-4. **Start the frontend** (separate terminal):
-   ```bash
-   npm run dev
-   ```
-
-5. Open **http://localhost:5173** in your browser.
-
-## Project Structure
-
+```bash
+cd DEENCORE
+npm install
 ```
-DEENCORE Hackathon/
-├── server/index.js    # Express backend with OAuth2, pagination, API routes
-├── src/
-│   ├── App.jsx        # Main React component with Quran reader logic
-│   ├── App.css        # Styling with 5 theme presets
-│   └── main.jsx       # React entry point
-├── index.html         # HTML template
-├── vite.config.js     # Vite configuration
-└── package.json       # Dependencies & scripts
+
+### 2. Configure backend environment
+
+Create `DEENCORE/server/.env` (copy from `DEENCORE/server/.env.example`) and set:
+
+```env
+QF_CLIENT_ID=your_client_id
+QF_CLIENT_SECRET=your_client_secret
+QF_AUTH_URL=https://oauth2.quran.foundation/
+QF_API_BASE=https://apis.quran.foundation/
+PORT=3001
 ```
+
+### 3. Run backend
+
+```bash
+cd DEENCORE
+npm run server
+```
+
+Backend URL: http://localhost:3001
+
+### 4. Run frontend
+
+In a second terminal:
+
+```bash
+cd DEENCORE
+npm run dev
+```
+
+Frontend URL: http://localhost:5173
+
+## Scripts
+
+From `DEENCORE`:
+
+- `npm run dev` -> Start Vite dev server
+- `npm run server` -> Start Express backend
+- `npm start` -> Alias for backend
+- `npm run build` -> Build frontend
+- `npm run preview` -> Preview built frontend
+
+## Key API Routes (Backend)
+
+- `GET /api/health`
+- `GET /api/chapters`
+- `GET /api/chapters/:chapterNumber/verses/:translationId`
+- `GET /api/juzs`, `GET /api/juzs/:juzNumber/verses/:translationId`
+- `GET /api/hizbs`, `GET /api/hizbs/:hizbNumber/verses/:translationId`
+- `GET /api/audio/chapter/:reciterId/:chapterNumber`
+- `GET /api/audio/verse/:reciterId/:chapterNumber`
+- `GET /api/recitations`
+- `GET /api/tafsirs`, `GET /api/tafsir/:tafsirId/by_chapter/:chapterNumber`
+- `GET /api/search`
+
+## Project Layout
+
+```text
+quran-foundation-app/
+|- READme.md
+|- DEENCORE/
+|  |- package.json
+|  |- index.html
+|  |- vite.config.js
+|  |- server/
+|  |  |- index.js
+|  |  |- .env.example
+|  |- src/
+|     |- App.jsx
+|     |- App.css
+|     |- main.jsx
+```
+
+## Troubleshooting
+
+- Backend says credentials missing:
+   - Ensure `DEENCORE/server/.env` exists.
+   - Ensure `QF_CLIENT_ID` and `QF_CLIENT_SECRET` are real values.
+
+- Frontend loads but API calls fail:
+   - Confirm backend is running on port `3001`.
+   - Check `QF_AUTH_URL` and `QF_API_BASE` values.
+
+- Build fails with terser message:
+   - Install terser in `DEENCORE`:
+      - `npm install -D terser`
+
+## Security Notes
+
+- Never expose `QF_CLIENT_SECRET` in frontend code.
+- Keep `DEENCORE/server/.env` out of version control.
+- Rotate credentials if they are ever leaked.
