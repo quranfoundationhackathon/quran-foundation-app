@@ -340,16 +340,29 @@ const tuneColorForContrast = (base, background, minContrast = 4.5) => {
   return target;
 };
 
-const buildCustomThemeStyle = (customAccent) => {
+const isCustomAccentLight = (customAccent) => {
+  const accent = hexToRgb(customAccent);
+  if (!accent) return false;
+  const perceivedBrightness = (accent.r * 299 + accent.g * 587 + accent.b * 114) / 1000;
+  return perceivedBrightness > 140;
+};
+
+const buildCustomThemeStyle = (customAccent, preferredMode = 'auto') => {
   const accent = hexToRgb(customAccent);
   if (!accent) return null;
 
-  const perceivedBrightness = (accent.r * 299 + accent.g * 587 + accent.b * 114) / 1000;
-  const isLightAccent = perceivedBrightness > 140;
+  const isLightAccent = isCustomAccentLight(customAccent);
+  const isLightMode = preferredMode === 'light' ? true : preferredMode === 'dark' ? false : isLightAccent;
 
-  const bgPrimary = isLightAccent ? mixRgb(accent, { r: 255, g: 255, b: 255 }, 0.92) : mixRgb(accent, { r: 0, g: 0, b: 0 }, 0.88);
-  const bgSecondary = isLightAccent ? mixRgb(accent, { r: 255, g: 255, b: 255 }, 0.85) : mixRgb(accent, { r: 0, g: 0, b: 0 }, 0.78);
-  const bgTertiary = isLightAccent ? mixRgb(accent, { r: 255, g: 255, b: 255 }, 0.95) : mixRgb(accent, { r: 0, g: 0, b: 0 }, 0.72);
+  const bgPrimary = isLightMode
+    ? mixRgb(accent, { r: 255, g: 255, b: 255 }, isLightAccent ? 0.9 : 0.95)
+    : mixRgb(accent, { r: 0, g: 0, b: 0 }, isLightAccent ? 0.9 : 0.86);
+  const bgSecondary = isLightMode
+    ? mixRgb(accent, { r: 255, g: 255, b: 255 }, isLightAccent ? 0.84 : 0.9)
+    : mixRgb(accent, { r: 0, g: 0, b: 0 }, isLightAccent ? 0.82 : 0.76);
+  const bgTertiary = isLightMode
+    ? mixRgb(accent, { r: 255, g: 255, b: 255 }, isLightAccent ? 0.94 : 0.97)
+    : mixRgb(accent, { r: 0, g: 0, b: 0 }, isLightAccent ? 0.76 : 0.68);
 
   const idealPrimary = contrastRatio({ r: 255, g: 255, b: 255 }, bgPrimary) >= contrastRatio({ r: 0, g: 0, b: 0 }, bgPrimary)
     ? { r: 255, g: 255, b: 255 }
@@ -368,8 +381,8 @@ const buildCustomThemeStyle = (customAccent) => {
 
   return {
     '--bg-primary': rgbCss(bgPrimary),
-    '--bg-secondary': rgbaCss(bgSecondary, isLightAccent ? 0.88 : 0.7),
-    '--bg-tertiary': rgbaCss(bgTertiary, isLightAccent ? 0.95 : 0.62),
+    '--bg-secondary': rgbaCss(bgSecondary, isLightMode ? 0.9 : 0.72),
+    '--bg-tertiary': rgbaCss(bgTertiary, isLightMode ? 0.95 : 0.64),
     '--bg-hover': rgbaCss(tuneColorForContrast(accent, bgPrimary, 3), 0.14),
     '--text-primary': rgbCss(textPrimary),
     '--text-secondary': rgbCss(textSecondary),
@@ -377,16 +390,16 @@ const buildCustomThemeStyle = (customAccent) => {
     '--accent-hover': rgbCss(accentHover),
     '--border': rgbaCss(tuneColorForContrast(mixRgb(accentColor, bgPrimary, 0.28), bgPrimary, 2.2), 0.42),
     '--border-hover': rgbaCss(tuneColorForContrast(mixRgb(accentColor, bgPrimary, 0.18), bgPrimary, 2.4), 0.62),
-    '--nav-bg': isLightAccent ? 'rgba(255, 255, 255, 0.94)' : rgbaCss(mixRgb(accent, { r: 0, g: 0, b: 0 }, 0.9), 0.94),
-    '--nav-border': rgbaCss(tuneColorForContrast(mixRgb(accentColor, bgPrimary, 0.22), bgPrimary, 2.3), isLightAccent ? 0.24 : 0.2),
-    '--chrome-control-bg': isLightAccent ? 'rgba(255, 255, 255, 0.94)' : rgbaCss(bgSecondary, 0.58),
-    '--chrome-control-border': rgbaCss(tuneColorForContrast(mixRgb(accentColor, bgPrimary, 0.2), bgPrimary, 2.2), isLightAccent ? 0.32 : 0.35),
-    '--chrome-control-shadow': isLightAccent
+    '--nav-bg': isLightMode ? 'rgba(255, 255, 255, 0.94)' : rgbaCss(mixRgb(accent, { r: 0, g: 0, b: 0 }, 0.9), 0.94),
+    '--nav-border': rgbaCss(tuneColorForContrast(mixRgb(accentColor, bgPrimary, 0.22), bgPrimary, 2.3), isLightMode ? 0.24 : 0.2),
+    '--chrome-control-bg': isLightMode ? 'rgba(255, 255, 255, 0.94)' : rgbaCss(bgSecondary, 0.58),
+    '--chrome-control-border': rgbaCss(tuneColorForContrast(mixRgb(accentColor, bgPrimary, 0.2), bgPrimary, 2.2), isLightMode ? 0.32 : 0.35),
+    '--chrome-control-shadow': isLightMode
       ? '0 6px 20px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.92)'
       : '0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12)',
-    '--bg-gradient-end': rgbCss(isLightAccent ? mixRgb(accent, { r: 255, g: 255, b: 255 }, 0.78) : mixRgb(accent, { r: 0, g: 0, b: 0 }, 0.78)),
-    '--shadow-card': isLightAccent ? '0 8px 24px rgba(0, 0, 0, 0.1)' : '0 8px 32px rgba(0, 0, 0, 0.3)',
-    '--shadow-hover': isLightAccent ? '0 12px 32px rgba(0, 0, 0, 0.16)' : '0 16px 48px rgba(0, 0, 0, 0.38)',
+    '--bg-gradient-end': rgbCss(isLightMode ? mixRgb(accent, { r: 255, g: 255, b: 255 }, 0.82) : mixRgb(accent, { r: 0, g: 0, b: 0 }, 0.8)),
+    '--shadow-card': isLightMode ? '0 8px 24px rgba(0, 0, 0, 0.1)' : '0 8px 32px rgba(0, 0, 0, 0.3)',
+    '--shadow-hover': isLightMode ? '0 12px 32px rgba(0, 0, 0, 0.16)' : '0 16px 48px rgba(0, 0, 0, 0.38)',
   };
 };
 
@@ -689,6 +702,20 @@ const IconFullscreen = () => (
 const IconExitFullscreen = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+  </svg>
+);
+
+const IconSidebarLeft = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="4" y="4" width="16" height="16" rx="3" />
+    <path d="M10 8l-4 4 4 4" />
+  </svg>
+);
+
+const IconSidebarRight = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="4" y="4" width="16" height="16" rx="3" />
+    <path d="M14 8l4 4-4 4" />
   </svg>
 );
 
@@ -2062,6 +2089,8 @@ function Quran({ audioControls, onOpenSearch }) {
   const [loadingGroupedList, setLoadingGroupedList] = useState(false);
   const [error, setError] = useState(null);
   const [showBookmarks, setShowBookmarks] = useState(false);
+  const [showSurahSidebar, setShowSurahSidebar] = useState(true);
+  const [showAyahSidebar, setShowAyahSidebar] = useState(true);
   const [surahSearch, setSurahSearch] = useState('');
   const [sidebarRefreshing, setSidebarRefreshing] = useState(false);
   const [ayahInput, setAyahInput] = useState('');
@@ -2560,6 +2589,10 @@ function Quran({ audioControls, onOpenSearch }) {
   });
   const sidebarPlaceholder = viewBy === 'surah' ? 'Search surah or #' : viewBy === 'juz' ? 'Search juz or # (e.g. 2, 20)' : 'Search hizb or # (e.g. 2, 20)';
   const sidebarTitle = viewBy === 'surah' ? 'Surahs' : viewBy === 'juz' ? 'Juzs' : 'Hizbs';
+  const leftSidebarWidth = showSurahSidebar ? `${surahWidth}px` : '0px';
+  const leftHandleWidth = showSurahSidebar ? '8px' : '0px';
+  const rightHandleWidth = showAyahSidebar ? '8px' : '0px';
+  const rightSidebarWidth = showAyahSidebar ? `${ayahWidth}px` : '0px';
 
   useEffect(() => {
     if (viewBy !== 'surah' || !surahListRef.current || showBookmarks) return;
@@ -2588,12 +2621,12 @@ function Quran({ audioControls, onOpenSearch }) {
       <div
         className="quran-container"
         ref={containerRef}
-        style={{ gridTemplateColumns: fullscreen ? '0px 0px 1fr 0px 0px' : `${surahWidth}px 8px 1fr 8px ${ayahWidth}px` }}
+        style={{ gridTemplateColumns: fullscreen ? '0px 0px 1fr 0px 0px' : `${leftSidebarWidth} ${leftHandleWidth} 1fr ${rightHandleWidth} ${rightSidebarWidth}` }}
         data-fullscreen={fullscreen ? 'true' : undefined}
       >
 
         {/* ─── Left Selector (View By) ─── */}
-        <div className="surah-selector-wrapper">
+        <div className={`surah-selector-wrapper ${showSurahSidebar ? '' : 'is-hidden'}`}>
           <div className="surah-selector-header">
             <div className="surah-selector-title">{sidebarTitle}</div>
             {viewBy === 'surah' && (
@@ -2601,6 +2634,7 @@ function Quran({ audioControls, onOpenSearch }) {
                 className={`bookmarks-toggle-btn ${showBookmarks ? 'active' : ''}`}
                 onClick={() => setShowBookmarks(!showBookmarks)}
                 title="Bookmarks"
+                aria-label="Bookmarks"
               >
                 <IconBookmarkFill filled={showBookmarks} />
               </button>
@@ -2659,7 +2693,7 @@ function Quran({ audioControls, onOpenSearch }) {
         </div>
 
         {/* ─── Surah / Reader drag handle ─── */}
-        <div className="col-resize-handle" onMouseDown={onDragStart('surah')} title="Drag to resize" />
+        <div className={`col-resize-handle ${showSurahSidebar ? '' : 'is-hidden'}`} onMouseDown={onDragStart('surah')} title="Drag to resize" />
 
         {/* ─── Quran Reader (main area, center) ─── */}
         <div className={`quran-reader view-${settings.viewMode}`} ref={readerRef}>
@@ -2710,6 +2744,22 @@ function Quran({ audioControls, onOpenSearch }) {
                   )}
                   {/* Search & Fullscreen inline */}
                   <div className="reader-toolbar">
+                      <button
+                        className={`reader-toolbar-btn sidebar-toggle ${showSurahSidebar ? '' : 'active'}`}
+                        onClick={() => setShowSurahSidebar(prev => !prev)}
+                        title={showSurahSidebar ? 'Hide surah list' : 'Show surah list'}
+                        aria-label={showSurahSidebar ? 'Hide surah list' : 'Show surah list'}
+                      >
+                        {showSurahSidebar ? <IconSidebarLeft /> : <IconSidebarRight />}
+                      </button>
+                      <button
+                        className={`reader-toolbar-btn sidebar-toggle ${showAyahSidebar ? '' : 'active'}`}
+                        onClick={() => setShowAyahSidebar(prev => !prev)}
+                        title={showAyahSidebar ? 'Hide ayah list' : 'Show ayah list'}
+                        aria-label={showAyahSidebar ? 'Hide ayah list' : 'Show ayah list'}
+                      >
+                        {showAyahSidebar ? <IconSidebarRight /> : <IconSidebarLeft />}
+                      </button>
                     <button className="reader-toolbar-btn" onClick={() => onOpenSearch?.()}
                       title="Search Quran (Ctrl+F or /)"><IconSearchLarge /></button>
                     <button className="reader-toolbar-btn" onClick={() => setFullscreen(v => !v)}
@@ -2843,10 +2893,10 @@ function Quran({ audioControls, onOpenSearch }) {
         </div>
 
         {/* ─── Reader / Ayah drag handle ─── */}
-        <div className="col-resize-handle" onMouseDown={onDragStart('ayah')} title="Drag to resize" />
+        <div className={`col-resize-handle ${showAyahSidebar ? '' : 'is-hidden'}`} onMouseDown={onDragStart('ayah')} title="Drag to resize" />
 
         {/* ─── Ayah Panel (right sidebar) ─── */}
-        <div className="ayah-panel">
+        <div className={`ayah-panel ${showAyahSidebar ? '' : 'is-hidden'}`}>
           <div className="ayah-panel-header">Ayahs</div>
           <div className="sidebar-search-wrap">
             <input
@@ -3876,18 +3926,30 @@ function Explore({ onNavigate }) {
     }
     if (audioRef.current) { audioRef.current.pause(); }
     setPlayingReciter(reciter.id);
-    fetch(`${API_BASE}/api/audio/chapter/${reciter.id}/${reciter.chapter}`)
-      .then(r => r.json())
+    const playUrl = (url) => {
+      if (!url) return false;
+      const audio = new Audio(url);
+      audio.volume = 0.6;
+      audio.onended = () => setPlayingReciter(null);
+      audio.onerror = () => setPlayingReciter(null);
+      audio.play().catch(() => setPlayingReciter(null));
+      audioRef.current = audio;
+      return true;
+    };
+
+    fetch(`${API_BASE}/api/audio/verse/${reciter.id}/${reciter.chapter}`)
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
-        const url = data?.audio_file?.audio_url;
-        if (url) {
-          const audio = new Audio(url);
-          audio.volume = 0.6;
-          audio.onended = () => setPlayingReciter(null);
-          audio.onerror = () => setPlayingReciter(null);
-          audio.play().catch(() => setPlayingReciter(null));
-          audioRef.current = audio;
-        } else { setPlayingReciter(null); }
+        const firstVerseUrl = data?.audio_files?.[0]?.url;
+        if (firstVerseUrl && playUrl(normalizeQuranAudioUrl(firstVerseUrl))) return null;
+        return fetch(`${API_BASE}/api/audio/chapter/${reciter.id}/${reciter.chapter}`);
+      })
+      .then(r => r && r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        const url = normalizeQuranAudioUrl(data?.audio_file?.audio_url);
+        if (url) playUrl(url);
+        else setPlayingReciter(null);
       })
       .catch(() => setPlayingReciter(null));
   };
@@ -4981,18 +5043,20 @@ function AppShell({ tab, setTab }) {
     return () => window.removeEventListener('keydown', handler);
   }, [showSettings, showSearch, globalAudioState, toggleGlobalPlay, setShowSettings]);
 
-  const appStyle = buildCustomThemeStyle(settings.customAccent) || {};
+  const normalizedCustomAccent = normalizeHexColor(settings.customAccent);
+  const hasCustomTheme = Boolean(normalizedCustomAccent);
+  const resolvedTheme = settings.theme;
+  const appStyle = buildCustomThemeStyle(normalizedCustomAccent, resolvedTheme === 'light' ? 'light' : 'dark') || {};
 
-  const isLightMode = settings.theme === 'light';
+  const isLightMode = resolvedTheme === 'light';
   const toggleThemeMode = () => {
-    updateSetting('customAccent', '');
     updateSetting('theme', isLightMode ? 'dark-navy' : 'light');
   };
 
   return (
     <div
-      className={`app theme-${settings.theme} ${showPlayer ? 'has-player' : ''}`}
-      data-custom-theme={settings.customAccent ? 'true' : 'false'}
+      className={`app theme-${resolvedTheme} ${showPlayer ? 'has-player' : ''}`}
+      data-custom-theme={hasCustomTheme ? 'true' : 'false'}
       style={appStyle}
     >
       <header className="app-chrome" aria-label="Top controls">
@@ -5014,17 +5078,17 @@ function AppShell({ tab, setTab }) {
         </div>
 
         <nav className="top-nav" role="navigation" aria-label="Main navigation">
-          <button className={tab === "home" ? "active" : ""} onClick={() => handleNavigate("home")} aria-current={tab === "home" ? "page" : undefined} title="Home">
-            <IconHome /><span>Home</span>
+          <button className={tab === "home" ? "active" : ""} onClick={() => handleNavigate("home")} aria-current={tab === "home" ? "page" : undefined} title="Home" aria-label="Home">
+            <IconHome />
           </button>
-          <button className={tab === "quran" ? "active" : ""} onClick={() => handleNavigate("quran")} aria-current={tab === "quran" ? "page" : undefined} title="Quran">
-            <IconQuran /><span>Quran</span>
+          <button className={tab === "quran" ? "active" : ""} onClick={() => handleNavigate("quran")} aria-current={tab === "quran" ? "page" : undefined} title="Quran" aria-label="Quran">
+            <IconQuran />
           </button>
-          <button className={tab === "salah" ? "active" : ""} onClick={() => handleNavigate("salah")} aria-current={tab === "salah" ? "page" : undefined} title="Salah">
-            <IconPrayer /><span>Salah</span>
+          <button className={tab === "salah" ? "active" : ""} onClick={() => handleNavigate("salah")} aria-current={tab === "salah" ? "page" : undefined} title="Salah" aria-label="Salah">
+            <IconPrayer />
           </button>
-          <button className={tab === "explore" ? "active" : ""} onClick={() => handleNavigate("explore")} aria-current={tab === "explore" ? "page" : undefined} title="Explore">
-            <IconExplore /><span>Explore</span>
+          <button className={tab === "explore" ? "active" : ""} onClick={() => handleNavigate("explore")} aria-current={tab === "explore" ? "page" : undefined} title="Explore" aria-label="Explore">
+            <IconExplore />
           </button>
         </nav>
 
@@ -5185,7 +5249,7 @@ function AuthPage({ onLogin }) {
           <h1 className="auth-side-title">Welcome back to DeenCore.</h1>
           <div className="auth-side-features">
             <div className="auth-side-feature"><span>114</span> Surahs with search and translation</div>
-            <div className="auth-side-feature"><span>250</span> Reciter options available</div>
+            <div className="auth-side-feature"><span>Tailored</span> Experience customized your way</div>
             <div className="auth-side-feature"><span>Local</span> Progress, streaks, and bookmarks</div>
           </div>
         </div>
