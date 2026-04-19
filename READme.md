@@ -8,21 +8,6 @@
 
 A full-stack Quran reading experience built with React + Vite on the frontend and an Express proxy backend for secure OAuth2 access to Quran Foundation content APIs.
 
-## Screenshots
-
-Use this section to showcase the app UI on the repository homepage.
-
-```text
-Recommended image folder:
-DEENCORE/docs/screenshots/
-```
-
-Example markdown (replace with your actual files):
-
-```md
-![Home](DEENCORE/docs/screenshots/home.png)
-![Quran Reader](DEENCORE/docs/screenshots/quran-reader.png)
-![Global Audio Player](DEENCORE/docs/screenshots/audio-player.png)
 ```
 
 ## Highlights
